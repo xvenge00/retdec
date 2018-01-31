@@ -22,7 +22,7 @@ print_help()
 	echo "    $0 [ options ] file"
 	echo ""
 	echo "Options:"
-	echo "    -a name,   --arch name                            Specify target architecture [mips|pic32|arm|thumb|powerpc|x86] (default: x86)."
+	echo "    -a name,   --arch name                            Specify target architecture [mips|pic32|arm|thumb|powerpc|x86|x86-64] (default: x86)."
 	echo "    -e name,   --endian name                          Specify target endianness [little|big] (default: little). Not all combinations are supported."
 	echo "    -f name,   --format name                          Specify object file format [elf|pe|ihex|macho] (default: pe)."
 	echo "    -h,        --help                                 Print this help message."
@@ -249,7 +249,7 @@ while true; do
 	case "$1" in
 	-a|--arch)						# Target architecture.
 		[ "$ARCH" ] && print_error_and_die "Duplicate option: -a|--arch"
-		[ "$2" != "mips" -a "$2" != "pic32" -a "$2" != "arm" -a "$2" != "thumb" -a "$2" != "powerpc" -a "$2" != "x86" ] && print_error_and_die "Unsupported target architecture '$2'. Supported architectures: Intel x86, ARM, ARM+Thumb, MIPS, PIC32, PowerPC."
+		[ "$2" != "mips" -a "$2" != "pic32" -a "$2" != "arm" -a "$2" != "thumb" -a "$2" != "powerpc" -a "$2" != "x86" -a "$2" != "x86-64" ] && print_error_and_die "Unsupported target architecture '$2'. Supported architectures: Intel x86, x86-64, ARM, ARM+Thumb, MIPS, PIC32, PowerPC."
 		ARCH="$2"
 		shift 2;;
 	-e|--endian)				# Endian.
@@ -745,21 +745,21 @@ if [ "$MODE" = "bin" ] || [ "$MODE" = "raw" ]; then
 	# Check whether the correct target architecture was specified.
 	if [ "$ARCH" = "arm" -o "$ARCH" = "thumb" ]; then
 		ORDS_DIR="$ARM_ORDS_DIR"
-	elif [ "$ARCH" = "x86" ]; then
+	elif [ "$ARCH" = "x86" -o "$ARCH" = "x86-64" ]; then
 		ORDS_DIR="$X86_ORDS_DIR"
 	elif [ "$ARCH" = "powerpc" -o "$ARCH" = "mips" -o "$ARCH" = "pic32" ]; then
 		: # nothing
 	else
 		cleanup
-		print_error_and_die "Unsupported target architecture '${ARCH^^}'. Supported architectures: Intel x86, ARM, ARM+Thumb, MIPS, PIC32, PowerPC."
+		print_error_and_die "Unsupported target architecture '${ARCH^^}'. Supported architectures: Intel x86, x86-64, ARM, ARM+Thumb, MIPS, PIC32, PowerPC."
 	fi
 
 	# Check file class (e.g. "ELF32", "ELF64"). At present, we can only decompile 32-bit files.
 	# Note: we prefer to report the "unsupported architecture" error (above) than this "generic" error.
 	FILECLASS=$("$CONFIGTOOL" "$CONFIG" --read --file-class)
-	if [ "$FILECLASS" != "16" ] && [ "$FILECLASS" != "32" ]; then
+	if [ "$FILECLASS" != "16" ] && [ "$FILECLASS" != "32" ] && [ "$FILECLASS" != "64" ]; then
 		cleanup
-		print_error_and_die "Unsupported target format '${FORMAT^^}$FILECLASS'. Supported formats: ELF32, PE32, Intel HEX 32."
+		print_error_and_die "Unsupported target format '${FORMAT^^}$FILECLASS'. Supported formats: ELF32, ELF64, PE32, PE64, Intel HEX 32."
 	fi
 
 	# Set path to statically linked code signatures.
