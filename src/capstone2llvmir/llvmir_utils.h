@@ -24,7 +24,7 @@ namespace capstone2llvmir {
  */
 llvm::Value* generateValueNegate(llvm::IRBuilder<>& irb, llvm::Value* val);
 
-llvm::Type* getIntegerTypeFromByteSize(llvm::Module* module, unsigned sz);
+llvm::IntegerType* getIntegerTypeFromByteSize(llvm::Module* module, unsigned sz);
 
 llvm::Type* getFloatTypeFromByteSize(llvm::Module* module, unsigned sz);
 

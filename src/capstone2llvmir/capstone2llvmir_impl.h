@@ -41,7 +41,10 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 // Mode query & modification methods - from Capstone2LlvmIrTranslator.
 //==============================================================================
 //
-		// All of these are inherently architecture specific -> implemented
+		virtual void modifyBasicMode(cs_mode m) override;
+		virtual void modifyExtraMode(cs_mode m) override;
+		virtual uint32_t getArchBitSize() override;
+		// Some of these are inherently architecture specific -> implemented
 		// in the concrete translator classes.
 //
 //==============================================================================
@@ -107,6 +110,45 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 		virtual uint32_t getCapstoneRegister(llvm::GlobalVariable* gv) const override;
 //
 //==============================================================================
+// Common implementation enums, structures, classes, etc.
+//==============================================================================
+//
+	protected:
+		/**
+		 * What should instruction operand loading method do if types of
+		 * loaded operands are not the same.
+		 */
+		enum class eOpConv
+		{
+			/// Throw exception.
+			THROW,
+			/// Operand types does not have to be equal.
+			NOTHING,
+			/// Convert second using SEXT.
+			/// Types must be integer, or LLVM asserts.
+			SECOND_SEXT,
+			/// Convert second using ZEXT.
+			/// Types must be integer, or LLVM asserts.
+			SECOND_ZEXT,
+			/// Convert to destination type using ZEXT or TRUNC.
+			/// Types must be integer, or LLVM asserts.
+			ZEXT_TRUNC,
+			/// Convert to destination type using SEXT or TRUNC.
+			/// Types must be integer, or LLVM asserts.
+			SEXT_TRUNC,
+			/// Convert to destination type using FPCast (FPExt, BitCast,
+			/// or FPTrunc).
+			/// Types must be floating point, or LLVM asserts.
+			FP_CAST,
+			/// Convert to destination type using SIToFP.
+			/// Source must be integer, destination fp, or LLVM asserts.
+			SITOFP,
+			/// Convert to destination type using UIToFP.
+			/// Source must be integer, destination fp, or LLVM asserts.
+			UITOFP
+		};
+//
+//==============================================================================
 // New implementation-related pure virtual methods.
 //==============================================================================
 //
@@ -148,50 +190,28 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 		virtual void generateDataLayout() = 0;
 
 		/**
+		 * @return Capstone carry register.
+		 */
+		virtual uint32_t getCarryRegister() = 0;
+
+		/**
 		 * Translate single Capstone instruction.
 		 */
 		virtual void translateInstruction(
 				cs_insn* i,
 				llvm::IRBuilder<>& irb) = 0;
-//
-//==============================================================================
-// Common implementation enums, structures, classes, etc.
-//==============================================================================
-//
-	protected:
+
 		/**
-		 * What should instruction operand loading method do if types of
-		 * loaded operands are not the same.
+		 * Load LLVM register corresponding to Capstone register @p r, using
+		 * instruction builder @irb. Optionally convert the loaded value to
+		 * type @p dstType using cast type @p ct.
+		 * @return Loaded value.
 		 */
-		enum class eOpConv
-		{
-			/// Throw exception.
-			THROW,
-			/// Operand types does not have to be equal.
-			NOTHING,
-			/// Convert second using SEXT.
-			/// Types must be integer, or LLVM asserts.
-			SECOND_SEXT,
-			/// Convert second using ZEXT.
-			/// Types must be integer, or LLVM asserts.
-			SECOND_ZEXT,
-			/// Convert to destination type using ZEXT or TRUNC.
-			/// Types must be integer, or LLVM asserts.
-			ZEXT_TRUNC,
-			/// Convert to destination type using SEXT or TRUNC.
-			/// Types must be integer, or LLVM asserts.
-			SEXT_TRUNC,
-			/// Convert to destination type using FPCast (FPExt, BitCast,
-			/// or FPTrunc).
-			/// Types must be floating point, or LLVM asserts.
-			FP_CAST,
-			/// Convert to destination type using SIToFP.
-			/// Source must be integer, destination fp, or LLVM asserts.
-			SITOFP,
-			/// Convert to destination type using UIToFP.
-			/// Source must be integer, destination fp, or LLVM asserts.
-			UITOFP
-		};
+		virtual llvm::Value* loadRegister(
+				uint32_t r,
+				llvm::IRBuilder<>& irb,
+				llvm::Type* dstType = nullptr,
+				eOpConv ct = eOpConv::THROW) = 0;
 //
 //==============================================================================
 // Virtual translation initialization and environment generation methods.
@@ -233,9 +253,79 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 				llvm::Constant* initializer = nullptr);
 //
 //==============================================================================
+// Carry/overflow/borrow add/sub generation routines.
+//==============================================================================
+//
+	protected:
+		llvm::Value* generateCarryAdd(
+				llvm::Value* add,
+				llvm::Value* op0,
+				llvm::IRBuilder<>& irb);
+		llvm::Value* generateCarryAddC(
+				llvm::Value* op0,
+				llvm::Value* op1,
+				llvm::IRBuilder<>& irb,
+				llvm::Value* cf = nullptr);
+		llvm::Value* generateCarryAddInt4(
+				llvm::Value* op0,
+				llvm::Value* op1,
+				llvm::IRBuilder<>& irb);
+		llvm::Value* generateCarryAddCInt4(
+				llvm::Value* op0,
+				llvm::Value* op1,
+				llvm::IRBuilder<>& irb,
+				llvm::Value* cf = nullptr);
+		llvm::Value* generateOverflowAdd(
+				llvm::Value* add,
+				llvm::Value* op0,
+				llvm::Value* op1,
+				llvm::IRBuilder<>& irb);
+		llvm::Value* generateOverflowAddC(
+				llvm::Value* add,
+				llvm::Value* op0,
+				llvm::Value* op1,
+				llvm::IRBuilder<>& irb,
+				llvm::Value* cf = nullptr);
+		llvm::Value* generateOverflowSub(
+				llvm::Value* sub,
+				llvm::Value* op0,
+				llvm::Value* op1,
+				llvm::IRBuilder<>& irb);
+		llvm::Value* generateOverflowSubC(
+				llvm::Value* sub,
+				llvm::Value* op0,
+				llvm::Value* op1,
+				llvm::IRBuilder<>& irb,
+				llvm::Value* cf = nullptr);
+		llvm::Value* generateBorrowSub(
+				llvm::Value* op0,
+				llvm::Value* op1,
+				llvm::IRBuilder<>& irb);
+		llvm::Value* generateBorrowSubC(
+				llvm::Value* sub,
+				llvm::Value* op0,
+				llvm::Value* op1,
+				llvm::IRBuilder<>& irb,
+				llvm::Value* cf = nullptr);
+		llvm::Value* generateBorrowSubInt4(
+				llvm::Value* op0,
+				llvm::Value* op1,
+				llvm::IRBuilder<>& irb);
+		llvm::Value* generateBorrowSubCInt4(
+				llvm::Value* op0,
+				llvm::Value* op1,
+				llvm::IRBuilder<>& irb,
+				llvm::Value* cf = nullptr);
+//
+//==============================================================================
 // Non-virtual helper methods.
 //==============================================================================
 //
+	protected:
+		llvm::IntegerType* getDefaultType();
+		llvm::Value* getThisInsnAddress(cs_insn* i);
+		llvm::Value* getNextInsnAddress(cs_insn* i);
+
 	protected:
 		llvm::Function* getAsmFunction(const std::string& name) const;
 		llvm::Function* getOrCreateAsmFunction(

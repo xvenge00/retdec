@@ -50,51 +50,6 @@ bool Capstone2LlvmIrTranslatorMips_impl::isAllowedExtraMode(cs_mode m)
 			|| m == CS_MODE_MICRO;
 }
 
-/**
- * TODO: Not sure about changing basic modes on MIPS. What happens with
- * different registers sizes?
- * Can this be moved to abstract class?
- */
-void Capstone2LlvmIrTranslatorMips_impl::modifyBasicMode(cs_mode m)
-{
-	if (!isAllowedBasicMode(m))
-	{
-		throw Capstone2LlvmIrModeError(
-				_arch,
-				m,
-				Capstone2LlvmIrModeError::eType::BASIC_MODE);
-	}
-
-	if (cs_option(_handle, CS_OPT_MODE, m + _extraMode) != CS_ERR_OK)
-	{
-		throw CapstoneError(cs_errno(_handle));
-	}
-
-	_basicMode = m;
-}
-
-/**
- * TODO: This could be the same for multiple architectures, move to abstract
- * class?
- */
-void Capstone2LlvmIrTranslatorMips_impl::modifyExtraMode(cs_mode m)
-{
-	if (!isAllowedExtraMode(m))
-	{
-		throw Capstone2LlvmIrModeError(
-				_arch,
-				m,
-				Capstone2LlvmIrModeError::eType::EXTRA_MODE);
-	}
-
-	if (cs_option(_handle, CS_OPT_MODE, m + _basicMode) != CS_ERR_OK)
-	{
-		throw CapstoneError(cs_errno(_handle));
-	}
-
-	_extraMode = m;
-}
-
 uint32_t Capstone2LlvmIrTranslatorMips_impl::getArchByteSize()
 {
 	switch (_basicMode)
@@ -111,15 +66,6 @@ uint32_t Capstone2LlvmIrTranslatorMips_impl::getArchByteSize()
 			break;
 		}
 	}
-}
-
-/**
- * TODO: This could be the same for multiple architectures, move to abstract
- * class?
- */
-uint32_t Capstone2LlvmIrTranslatorMips_impl::getArchBitSize()
-{
-	return getArchByteSize() * 8;
 }
 
 //
@@ -377,6 +323,11 @@ void Capstone2LlvmIrTranslatorMips_impl::generateRegisters()
 	createRegister(MIPS_REG_MPL2, _regLt);
 }
 
+uint32_t Capstone2LlvmIrTranslatorMips_impl::getCarryRegister()
+{
+	return MIPS_REG_INVALID;
+}
+
 void Capstone2LlvmIrTranslatorMips_impl::translateInstruction(
 		cs_insn* i,
 		llvm::IRBuilder<>& irb)
@@ -386,8 +337,6 @@ void Capstone2LlvmIrTranslatorMips_impl::translateInstruction(
 	cs_detail* d = i->detail;
 	cs_mips* mi = &d->mips;
 
-//std::cout << std::hex << i->address << " @ " << i->mnemonic << " " << i->op_str << std::endl;
-
 	auto fIt = _i2fm.find(i->id);
 	if (fIt != _i2fm.end() && fIt->second != nullptr)
 	{
@@ -396,11 +345,7 @@ void Capstone2LlvmIrTranslatorMips_impl::translateInstruction(
 	}
 	else
 	{
-//		std::stringstream msg;
-//		msg << "Translation of unhandled instruction: " << i->id << " ("
-//				<< i->mnemonic << " " << i->op_str << ") @ " << std::hex
-//				<< i->address << "\n";
-//		throw Capstone2LlvmIrError(msg.str());
+		// TODO: Automatically generate pseudo asm call.
 	}
 }
 
@@ -411,25 +356,6 @@ void Capstone2LlvmIrTranslatorMips_impl::translateInstruction(
 //
 
 /**
- * TODO: Maybe this could be done in an abstract class level?
- */
-llvm::IntegerType* Capstone2LlvmIrTranslatorMips_impl::getDefaultType()
-{
-	auto& ctx = _module->getContext();
-	switch (_basicMode)
-	{
-		case CS_MODE_MIPS32:
-		case CS_MODE_MIPS32R6:
-		case CS_MODE_MIPS3:
-			return llvm::Type::getInt32Ty(ctx);
-		case CS_MODE_MIPS64:
-			return llvm::Type::getInt64Ty(ctx);
-		default:
-			throw Capstone2LlvmIrError("Unhandled mode in getDefaultType().");
-	}
-}
-
-/**
  * TODO: Maybe move this to the abstract class level? If all (most) archs
  * compute the current pc the same -- address of the next instruction.
  * TODO: Is current PC on MIPS address of the next instruction?
@@ -437,17 +363,6 @@ llvm::IntegerType* Capstone2LlvmIrTranslatorMips_impl::getDefaultType()
 llvm::Value* Capstone2LlvmIrTranslatorMips_impl::getCurrentPc(cs_insn* i)
 {
 	return getNextInsnAddress(i);
-}
-
-/**
- * See @c getCurrentPc() comment -- maybe it will change in future to return
- * address of the current, not next, instruction. Therefore, it is safer to use
- * this method in all the places that truly want next instruction address.
- * Also, make sure @c getNextNextInsnAddress() should not be used instead.
- */
-llvm::Value* Capstone2LlvmIrTranslatorMips_impl::getNextInsnAddress(cs_insn* i)
-{
-	return llvm::ConstantInt::get(getDefaultType(), i->address + i->size);
 }
 
 /**
@@ -528,7 +443,9 @@ uint32_t Capstone2LlvmIrTranslatorMips_impl::singlePrecisionToDoublePrecisionFpR
 
 llvm::Value* Capstone2LlvmIrTranslatorMips_impl::loadRegister(
 		uint32_t r,
-		llvm::IRBuilder<>& irb)
+		llvm::IRBuilder<>& irb,
+		llvm::Type* dstType,
+		eOpConv ct)
 {
 	if (r == MIPS_REG_INVALID)
 	{
@@ -557,6 +474,9 @@ llvm::Value* Capstone2LlvmIrTranslatorMips_impl::loadRegister(
 	{
 		throw Capstone2LlvmIrError("loadRegister() unhandled reg.");
 	}
+
+	// TODO: do type conversion
+
 	return irb.CreateLoad(llvmReg);
 }
 

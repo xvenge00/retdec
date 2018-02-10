@@ -47,61 +47,9 @@ bool Capstone2LlvmIrTranslatorArm_impl::isAllowedExtraMode(cs_mode m)
 			|| m == CS_MODE_BIG_ENDIAN;
 }
 
-/**
- * TODO: Can this be moved to abstract class?
- */
-void Capstone2LlvmIrTranslatorArm_impl::modifyBasicMode(cs_mode m)
-{
-	if (!isAllowedBasicMode(m))
-	{
-		throw Capstone2LlvmIrModeError(
-				_arch,
-				m,
-				Capstone2LlvmIrModeError::eType::BASIC_MODE);
-	}
-
-	if (cs_option(_handle, CS_OPT_MODE, m + _extraMode) != CS_ERR_OK)
-	{
-		throw CapstoneError(cs_errno(_handle));
-	}
-
-	_basicMode = m;
-}
-
-/**
- * TODO: This could be the same for multiple architectures, move to abstract
- * class?
- */
-void Capstone2LlvmIrTranslatorArm_impl::modifyExtraMode(cs_mode m)
-{
-	if (!isAllowedExtraMode(m))
-	{
-		throw Capstone2LlvmIrModeError(
-				_arch,
-				m,
-				Capstone2LlvmIrModeError::eType::EXTRA_MODE);
-	}
-
-	if (cs_option(_handle, CS_OPT_MODE, m + _basicMode) != CS_ERR_OK)
-	{
-		throw CapstoneError(cs_errno(_handle));
-	}
-
-	_extraMode = m;
-}
-
 uint32_t Capstone2LlvmIrTranslatorArm_impl::getArchByteSize()
 {
 	return 4;
-}
-
-/**
- * TODO: This could be the same for multiple architectures, move to abstract
- * class?
- */
-uint32_t Capstone2LlvmIrTranslatorArm_impl::getArchBitSize()
-{
-	return getArchByteSize() * 8;
 }
 
 //
@@ -152,6 +100,11 @@ void Capstone2LlvmIrTranslatorArm_impl::generateRegisters()
 	createRegister(ARM_REG_CPSR_V, _regLt);
 }
 
+uint32_t Capstone2LlvmIrTranslatorArm_impl::getCarryRegister()
+{
+	return ARM_REG_CPSR_C;
+}
+
 void Capstone2LlvmIrTranslatorArm_impl::translateInstruction(
 		cs_insn* i,
 		llvm::IRBuilder<>& irb)
@@ -161,13 +114,6 @@ void Capstone2LlvmIrTranslatorArm_impl::translateInstruction(
 	cs_detail* d = i->detail;
 	cs_arm* ai = &d->arm;
 
-//std::cout << std::hex << i->address << " @ " << i->mnemonic << " " << i->op_str << std::endl;
-
-//	assert(ai->vector_size == 0);
-//	assert(ai->vector_data == ARM_VECTORDATA_INVALID);
-//	assert(ai->cps_mode == ARM_CPSMODE_INVALID);
-//	assert(ai->cps_flag == ARM_CPSFLAG_INVALID);
-//	assert(ai->mem_barrier == ARM_MB_INVALID);
 	if (!(ai->vector_size == 0
 			&& ai->vector_data == ARM_VECTORDATA_INVALID
 			&& ai->cps_mode == ARM_CPSMODE_INVALID
@@ -202,13 +148,7 @@ void Capstone2LlvmIrTranslatorArm_impl::translateInstruction(
 	}
 	else
 	{
-//		assert(false && "unhandled instruction");
-
-//		std::stringstream msg;
-//		msg << "Translation of unhandled instruction: " << i->id << " ("
-//				<< i->mnemonic << " " << i->op_str << ") @ " << std::hex
-//				<< i->address << "\n";
-//		throw Capstone2LlvmIrError(msg.str());
+		// TODO: Automatically generate pseudo asm call.
 	}
 }
 
@@ -217,12 +157,6 @@ void Capstone2LlvmIrTranslatorArm_impl::translateInstruction(
 // ARM-specific methods.
 //==============================================================================
 //
-
-llvm::IntegerType* Capstone2LlvmIrTranslatorArm_impl::getDefaultType()
-{
-	auto& ctx = _module->getContext();
-	return llvm::Type::getInt32Ty(ctx);
-}
 
 /**
  * During execution, PC does not contain the address of the currently executing
@@ -248,21 +182,16 @@ llvm::IntegerType* Capstone2LlvmIrTranslatorArm_impl::getDefaultType()
  */
 llvm::Value* Capstone2LlvmIrTranslatorArm_impl::getCurrentPc(cs_insn* i)
 {
-//	return llvm::ConstantInt::get(getDefaultType(), i->address + (2*i->size));
 	return llvm::ConstantInt::get(
 			getDefaultType(),
 			((i->address + (2*i->size)) >> 2) << 2);
 }
 
-/**
- * TODO: Move to abstract parent class.
- */
-llvm::Value* Capstone2LlvmIrTranslatorArm_impl::getNextInsnAddress(cs_insn* i)
-{
-	return llvm::ConstantInt::get(getDefaultType(), i->address + i->size);
-}
-
-llvm::Value* Capstone2LlvmIrTranslatorArm_impl::loadRegister(uint32_t r, llvm::IRBuilder<>& irb)
+llvm::Value* Capstone2LlvmIrTranslatorArm_impl::loadRegister(
+		uint32_t r,
+		llvm::IRBuilder<>& irb,
+		llvm::Type* dstType,
+		eOpConv ct)
 {
 	if (r == ARM_REG_INVALID)
 	{
@@ -279,6 +208,9 @@ llvm::Value* Capstone2LlvmIrTranslatorArm_impl::loadRegister(uint32_t r, llvm::I
 	{
 		throw Capstone2LlvmIrError("loadRegister() unhandled reg.");
 	}
+
+	// TODO: do type conversion
+
 	return irb.CreateLoad(llvmReg);
 }
 
@@ -946,156 +878,6 @@ llvm::Instruction* Capstone2LlvmIrTranslatorArm_impl::storeOp(
 	}
 }
 
-/**
- * carry_add()
- */
-llvm::Value* Capstone2LlvmIrTranslatorArm_impl::genCarryAdd(
-		llvm::Value* add,
-		llvm::Value* op0,
-		llvm::IRBuilder<>& irb)
-{
-	return irb.CreateICmpULT(add, op0);
-}
-
-/**
- * carry_add_c()
- *
- * If @p cf is not passed, default cf register is used. Why pass it?
- * - Pass cf if you want to generate nicer code - prevent second cf load if
- *   it is already loaded by caller. This should however be taken care of by
- *   after generation optimizations.
- * - Use a different value as cf.
- */
-llvm::Value* Capstone2LlvmIrTranslatorArm_impl::genCarryAddC(
-		llvm::Value* op0,
-		llvm::Value* op1,
-		llvm::IRBuilder<>& irb,
-		llvm::Value* cf)
-{
-	auto* add1 = irb.CreateAdd(op0, op1);
-	if (cf == nullptr)
-	{
-		cf = loadRegister(ARM_REG_CPSR_C, irb);
-	}
-	auto* cfc = irb.CreateZExtOrTrunc(cf, add1->getType());
-	auto* add2 = irb.CreateAdd(add1, cfc);
-	auto* icmp1 = irb.CreateICmpULE(add2, op0);
-	auto* icmp2 = irb.CreateICmpULT(add1, op0);
-	auto* cff = irb.CreateZExtOrTrunc(cf, irb.getInt1Ty());
-	return irb.CreateSelect(cff, icmp1, icmp2);
-}
-
-/**
- * overflow_add()
- */
-llvm::Value* Capstone2LlvmIrTranslatorArm_impl::genOverflowAdd(
-		llvm::Value* add,
-		llvm::Value* op0,
-		llvm::Value* op1,
-		llvm::IRBuilder<>& irb)
-{
-	auto* xor0 = irb.CreateXor(op0, add);
-	auto* xor1 = irb.CreateXor(op1, add);
-	auto* ofAnd = irb.CreateAnd(xor0, xor1);
-	return irb.CreateICmpSLT(ofAnd, llvm::ConstantInt::get(ofAnd->getType(), 0));
-}
-
-/**
- * overflow_add_c()
- */
-llvm::Value* Capstone2LlvmIrTranslatorArm_impl::genOverflowAddC(
-		llvm::Value* add,
-		llvm::Value* op0,
-		llvm::Value* op1,
-		llvm::IRBuilder<>& irb,
-		llvm::Value* cf)
-{
-	if (cf == nullptr)
-	{
-		cf = loadRegister(ARM_REG_CPSR_C, irb);
-		cf = irb.CreateZExtOrTrunc(cf, add->getType());
-	}
-	auto* cfc = irb.CreateZExtOrTrunc(cf, add->getType());
-	auto* ofAdd = irb.CreateAdd(add, cfc);
-	auto* xor0 = irb.CreateXor(op0, ofAdd);
-	auto* xor1 = irb.CreateXor(op1, ofAdd);
-	auto* ofAnd = irb.CreateAnd(xor0, xor1);
-	return irb.CreateICmpSLT(ofAnd, llvm::ConstantInt::get(ofAnd->getType(), 0));
-}
-
-/**
- * borrow_sub()
- */
-llvm::Value* Capstone2LlvmIrTranslatorArm_impl::genBorrowSub(
-		llvm::Value* op0,
-		llvm::Value* op1,
-		llvm::IRBuilder<>& irb)
-{
-	return irb.CreateICmpULT(op0, op1);
-}
-
-/**
- * borrow_sub_c()
- */
-llvm::Value* Capstone2LlvmIrTranslatorArm_impl::genBorrowSubC(
-		llvm::Value* sub,
-		llvm::Value* op0,
-		llvm::Value* op1,
-		llvm::IRBuilder<>& irb,
-		llvm::Value* cf)
-{
-	if (cf == nullptr)
-	{
-		cf = loadRegister(ARM_REG_CPSR_C, irb);
-	}
-	auto* cfc = irb.CreateZExtOrTrunc(cf, sub->getType());
-	auto* cfSub = irb.CreateSub(sub, cfc);
-	auto* cfIcmp1 = irb.CreateICmpULT(op0, cfSub);
-	auto* negOne = llvm::ConstantInt::getSigned(op1->getType(), -1);
-	auto* cfIcmp2 = irb.CreateICmpULT(op1, negOne);
-	auto* cfOr = irb.CreateOr(cfIcmp1, cfIcmp2);
-	auto* cfIcmp3 = irb.CreateICmpULT(op0, op1);
-	auto* cff = irb.CreateZExtOrTrunc(cf, irb.getInt1Ty());
-	return irb.CreateSelect(cff, cfOr, cfIcmp3);
-}
-
-/**
- * overflow_sub()
- */
-llvm::Value* Capstone2LlvmIrTranslatorArm_impl::genOverflowSub(
-		llvm::Value* sub,
-		llvm::Value* op0,
-		llvm::Value* op1,
-		llvm::IRBuilder<>& irb)
-{
-	auto* xor0 = irb.CreateXor(op0, op1);
-	auto* xor1 = irb.CreateXor(op0, sub);
-	auto* ofAnd = irb.CreateAnd(xor0, xor1);
-	return irb.CreateICmpSLT(ofAnd, llvm::ConstantInt::get(ofAnd->getType(), 0));
-}
-
-/**
- * overflow_sub_c()
- */
-llvm::Value* Capstone2LlvmIrTranslatorArm_impl::genOverflowSubC(
-		llvm::Value* sub,
-		llvm::Value* op0,
-		llvm::Value* op1,
-		llvm::IRBuilder<>& irb,
-		llvm::Value* cf)
-{
-	if (cf == nullptr)
-	{
-		cf = loadRegister(ARM_REG_CPSR_C, irb);
-	}
-	auto* cfc = irb.CreateZExtOrTrunc(cf, sub->getType());
-	auto* ofSub = irb.CreateSub(sub, cfc);
-	auto* xor0 = irb.CreateXor(op0, op1);
-	auto* xor1 = irb.CreateXor(op0, ofSub);
-	auto* ofAnd = irb.CreateAnd(xor0, xor1);
-	return irb.CreateICmpSLT(ofAnd, llvm::ConstantInt::get(ofAnd->getType(), 0));
-}
-
 llvm::Value* Capstone2LlvmIrTranslatorArm_impl::generateInsnConditionCode(
 		llvm::IRBuilder<>& irb,
 		cs_arm* ai)
@@ -1233,8 +1015,8 @@ void Capstone2LlvmIrTranslatorArm_impl::translateAdc(cs_insn* i, cs_arm* ai, llv
 	if (ai->update_flags)
 	{
 		llvm::Value* zero = llvm::ConstantInt::get(val->getType(), 0);
-		storeRegister(ARM_REG_CPSR_C, genCarryAddC(op1, op2, irb, cf), irb);
-		storeRegister(ARM_REG_CPSR_V, genOverflowAddC(val, op1, op2, irb, cf), irb);
+		storeRegister(ARM_REG_CPSR_C, generateCarryAddC(op1, op2, irb, cf), irb);
+		storeRegister(ARM_REG_CPSR_V, generateOverflowAddC(val, op1, op2, irb, cf), irb);
 		storeRegister(ARM_REG_CPSR_N, irb.CreateICmpSLT(val, zero), irb);
 		storeRegister(ARM_REG_CPSR_Z, irb.CreateICmpEQ(val, zero), irb);
 	}
@@ -1269,8 +1051,8 @@ void Capstone2LlvmIrTranslatorArm_impl::translateAdd(cs_insn* i, cs_arm* ai, llv
 	if (ai->update_flags || i->id == ARM_INS_CMN)
 	{
 		llvm::Value* zero = llvm::ConstantInt::get(add->getType(), 0);
-		storeRegister(ARM_REG_CPSR_C, genCarryAdd(add, op1, irb), irb);
-		storeRegister(ARM_REG_CPSR_V, genOverflowAdd(add, op1, op2, irb), irb);
+		storeRegister(ARM_REG_CPSR_C, generateCarryAdd(add, op1, irb), irb);
+		storeRegister(ARM_REG_CPSR_V, generateOverflowAdd(add, op1, op2, irb), irb);
 		storeRegister(ARM_REG_CPSR_N, irb.CreateICmpSLT(add, zero), irb);
 		storeRegister(ARM_REG_CPSR_Z, irb.CreateICmpEQ(add, zero), irb);
 	}
@@ -1813,9 +1595,9 @@ void Capstone2LlvmIrTranslatorArm_impl::translateSbc(cs_insn* i, cs_arm* ai, llv
 		llvm::Value* zero = llvm::ConstantInt::get(val->getType(), 0);
 		// TODO: There is xor -1 (negate) in the original semantics. Is it ok?
 //		storeRegister(ARM_REG_CPSR_C, genBorrowSubC(val, op1, op2, irb, cf), irb);
-		storeRegister(ARM_REG_CPSR_C, generateValueNegate(irb, genBorrowSubC(val, op1, op2, irb, cf)), irb);
+		storeRegister(ARM_REG_CPSR_C, generateValueNegate(irb, generateBorrowSubC(val, op1, op2, irb, cf)), irb);
 
-		storeRegister(ARM_REG_CPSR_V, genOverflowSubC(val, op1, op2, irb, cf), irb);
+		storeRegister(ARM_REG_CPSR_V, generateOverflowSubC(val, op1, op2, irb, cf), irb);
 		storeRegister(ARM_REG_CPSR_N, irb.CreateICmpSLT(val, zero), irb);
 		storeRegister(ARM_REG_CPSR_Z, irb.CreateICmpEQ(val, zero), irb);
 	}
@@ -2173,13 +1955,13 @@ void Capstone2LlvmIrTranslatorArm_impl::translateSub(cs_insn* i, cs_arm* ai, llv
 		llvm::Value* zero = llvm::ConstantInt::get(sub->getType(), 0);
 
 		// ARM - ok, but maybe generates more ugly code.
-		storeRegister(ARM_REG_CPSR_C, generateValueNegate(irb, genBorrowSub(op1, op2, irb)), irb);
+		storeRegister(ARM_REG_CPSR_C, generateValueNegate(irb, generateBorrowSub(op1, op2, irb)), irb);
 		// THUMB - weird, but at least in ackermann.thumb.gnuarmgcc-4.4.1.O0.g.elf
 		// it generates prettier code. I'm not even sure they are the same.
 //		auto* op2Neg = generateValueNegate(irb, op2);
 //		storeRegister(ARM_REG_CPSR_C, genCarryAddC(op1, op2Neg, irb, llvm::ConstantInt::getSigned(op2Neg->getType(), -1)), irb);
 
-		storeRegister(ARM_REG_CPSR_V, genOverflowSub(sub, op1, op2, irb), irb);
+		storeRegister(ARM_REG_CPSR_V, generateOverflowSub(sub, op1, op2, irb), irb);
 		storeRegister(ARM_REG_CPSR_N, irb.CreateICmpSLT(sub, zero), irb);
 
 		// TODO: These are eq, but the second one is much nicer.

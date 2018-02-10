@@ -31,10 +31,7 @@ class Capstone2LlvmIrTranslatorMips_impl :
 	public:
 		virtual bool isAllowedBasicMode(cs_mode m) override;
 		virtual bool isAllowedExtraMode(cs_mode m) override;
-		virtual void modifyBasicMode(cs_mode m) override;
-		virtual void modifyExtraMode(cs_mode m) override;
 		virtual uint32_t getArchByteSize() override;
-		virtual uint32_t getArchBitSize() override;
 //
 //==============================================================================
 // Capstone related getters - from Capstone2LlvmIrTranslator.
@@ -57,6 +54,7 @@ class Capstone2LlvmIrTranslatorMips_impl :
 		virtual void generateEnvironmentArchSpecific() override;
 		virtual void generateDataLayout() override;
 		virtual void generateRegisters() override;
+		virtual uint32_t getCarryRegister() override;
 
 		virtual void translateInstruction(
 				cs_insn* i,
@@ -67,15 +65,17 @@ class Capstone2LlvmIrTranslatorMips_impl :
 //==============================================================================
 //
 	protected:
-		llvm::IntegerType* getDefaultType();
 		llvm::Value* getCurrentPc(cs_insn* i);
-		llvm::Value* getNextInsnAddress(cs_insn* i);
 		llvm::Value* getNextNextInsnAddress(cs_insn* i);
 		llvm::Value* getUnpredictableValue();
 
 		uint32_t singlePrecisionToDoublePrecisionFpRegister(uint32_t r) const;
 
-		llvm::Value* loadRegister(uint32_t r, llvm::IRBuilder<>& irb);
+		virtual llvm::Value* loadRegister(
+				uint32_t r,
+				llvm::IRBuilder<>& irb,
+				llvm::Type* dstType = nullptr,
+				eOpConv ct = eOpConv::THROW) override;
 		llvm::Value* loadOp(
 				cs_mips_op& op,
 				llvm::IRBuilder<>& irb,

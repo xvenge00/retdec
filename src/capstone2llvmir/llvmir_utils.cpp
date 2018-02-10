@@ -14,7 +14,7 @@ llvm::Value* generateValueNegate(llvm::IRBuilder<>& irb, llvm::Value* val)
 	return irb.CreateXor(val, llvm::ConstantInt::getSigned(val->getType(), -1));
 }
 
-llvm::Type* getIntegerTypeFromByteSize(llvm::Module* module, unsigned sz)
+llvm::IntegerType* getIntegerTypeFromByteSize(llvm::Module* module, unsigned sz)
 {
 	auto& ctx = module->getContext();
 	switch (sz)

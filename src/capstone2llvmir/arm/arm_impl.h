@@ -31,10 +31,7 @@ class Capstone2LlvmIrTranslatorArm_impl :
 	public:
 		virtual bool isAllowedBasicMode(cs_mode m) override;
 		virtual bool isAllowedExtraMode(cs_mode m) override;
-		virtual void modifyBasicMode(cs_mode m) override;
-		virtual void modifyExtraMode(cs_mode m) override;
 		virtual uint32_t getArchByteSize() override;
-		virtual uint32_t getArchBitSize() override;
 //
 //==============================================================================
 // Pure virtual methods from Capstone2LlvmIrTranslator_impl
@@ -47,6 +44,7 @@ class Capstone2LlvmIrTranslatorArm_impl :
 		virtual void generateEnvironmentArchSpecific() override;
 		virtual void generateDataLayout() override;
 		virtual void generateRegisters() override;
+		virtual uint32_t getCarryRegister() override;
 
 		virtual void translateInstruction(
 				cs_insn* i,
@@ -57,11 +55,13 @@ class Capstone2LlvmIrTranslatorArm_impl :
 //==============================================================================
 //
 	protected:
-		llvm::IntegerType* getDefaultType();
 		llvm::Value* getCurrentPc(cs_insn* i);
-		llvm::Value* getNextInsnAddress(cs_insn* i);
 
-		llvm::Value* loadRegister(uint32_t r, llvm::IRBuilder<>& irb);
+		virtual llvm::Value* loadRegister(
+				uint32_t r,
+				llvm::IRBuilder<>& irb,
+				llvm::Type* dstType = nullptr,
+				eOpConv ct = eOpConv::THROW) override;
 		llvm::Value* loadOp(
 				cs_arm_op& op,
 				llvm::IRBuilder<>& irb,
@@ -107,47 +107,6 @@ class Capstone2LlvmIrTranslatorArm_impl :
 		llvm::Value* generateInsnConditionCode(
 				llvm::IRBuilder<>& irb,
 				cs_arm* ai);
-		llvm::Value* genCarryAdd(
-				llvm::Value* add,
-				llvm::Value* op0,
-				llvm::IRBuilder<>& irb);
-		llvm::Value* genCarryAddC(
-				llvm::Value* op0,
-				llvm::Value* op1,
-				llvm::IRBuilder<>& irb,
-				llvm::Value* cf = nullptr);
-		llvm::Value* genOverflowAdd(
-				llvm::Value* add,
-				llvm::Value* op0,
-				llvm::Value* op1,
-				llvm::IRBuilder<>& irb);
-		llvm::Value* genOverflowAddC(
-				llvm::Value* add,
-				llvm::Value* op0,
-				llvm::Value* op1,
-				llvm::IRBuilder<>& irb,
-				llvm::Value* cf = nullptr);
-		llvm::Value* genBorrowSub(
-				llvm::Value* op0,
-				llvm::Value* op1,
-				llvm::IRBuilder<>& irb);
-		llvm::Value* genBorrowSubC(
-				llvm::Value* sub,
-				llvm::Value* op0,
-				llvm::Value* op1,
-				llvm::IRBuilder<>& irb,
-				llvm::Value* cf = nullptr);
-		llvm::Value* genOverflowSub(
-				llvm::Value* sub,
-				llvm::Value* op0,
-				llvm::Value* op1,
-				llvm::IRBuilder<>& irb);
-		llvm::Value* genOverflowSubC(
-				llvm::Value* sub,
-				llvm::Value* op0,
-				llvm::Value* op1,
-				llvm::IRBuilder<>& irb,
-				llvm::Value* cf = nullptr);
 
 		llvm::Value* generateOperandShift(
 				llvm::IRBuilder<>& irb,

@@ -45,42 +45,6 @@ bool Capstone2LlvmIrTranslatorPowerpc_impl::isAllowedExtraMode(cs_mode m)
 	return m == CS_MODE_LITTLE_ENDIAN || m == CS_MODE_BIG_ENDIAN;
 }
 
-void Capstone2LlvmIrTranslatorPowerpc_impl::modifyBasicMode(cs_mode m)
-{
-	if (!isAllowedBasicMode(m))
-	{
-		throw Capstone2LlvmIrModeError(
-				_arch,
-				m,
-				Capstone2LlvmIrModeError::eType::BASIC_MODE);
-	}
-
-	if (cs_option(_handle, CS_OPT_MODE, m + _extraMode) != CS_ERR_OK)
-	{
-		throw CapstoneError(cs_errno(_handle));
-	}
-
-	_basicMode = m;
-}
-
-void Capstone2LlvmIrTranslatorPowerpc_impl::modifyExtraMode(cs_mode m)
-{
-	if (!isAllowedExtraMode(m))
-	{
-		throw Capstone2LlvmIrModeError(
-				_arch,
-				m,
-				Capstone2LlvmIrModeError::eType::EXTRA_MODE);
-	}
-
-	if (cs_option(_handle, CS_OPT_MODE, m + _basicMode) != CS_ERR_OK)
-	{
-		throw CapstoneError(cs_errno(_handle));
-	}
-
-	_extraMode = m;
-}
-
 uint32_t Capstone2LlvmIrTranslatorPowerpc_impl::getArchByteSize()
 {
 	switch (_basicMode)
@@ -96,11 +60,6 @@ uint32_t Capstone2LlvmIrTranslatorPowerpc_impl::getArchByteSize()
 			break;
 		}
 	}
-}
-
-uint32_t Capstone2LlvmIrTranslatorPowerpc_impl::getArchBitSize()
-{
-	return getArchByteSize() * 8;
 }
 
 //
@@ -268,14 +227,17 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::generateRegisters()
 	createRegister(PPC_REG_CTR, _regLt);
 }
 
+uint32_t Capstone2LlvmIrTranslatorPowerpc_impl::getCarryRegister()
+{
+	return PPC_REG_CARRY;
+}
+
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateInstruction(
 		cs_insn* i,
 		llvm::IRBuilder<>& irb)
 {
 	cs_detail* d = i->detail;
 	cs_ppc* pi = &d->ppc;
-
-//std::cout << std::hex << i->address << " @ " << i->mnemonic << " " << i->op_str << std::endl;
 
 	auto fIt = _i2fm.find(i->id);
 	if (fIt != _i2fm.end() && fIt->second != nullptr)
@@ -285,14 +247,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateInstruction(
 	}
 	else
 	{
-//		std::cout << std::hex << i->address << " @ " << i->mnemonic << " " << i->op_str << std::endl;
-//		assert(false);
-
-//		std::stringstream msg;
-//		msg << "Translation of unhandled instruction: " << i->id << " ("
-//				<< i->mnemonic << " " << i->op_str << ") @ " << std::hex
-//				<< i->address << "\n";
-//		throw Capstone2LlvmIrError(msg.str());
+		// TODO: Automatically generate pseudo asm call.
 	}
 }
 
@@ -302,38 +257,11 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateInstruction(
 //==============================================================================
 //
 
-llvm::IntegerType* Capstone2LlvmIrTranslatorPowerpc_impl::getDefaultType()
-{
-	auto& ctx = _module->getContext();
-	switch (_basicMode)
-	{
-		case CS_MODE_32:
-			return llvm::Type::getInt32Ty(ctx);
-		case CS_MODE_64:
-		case CS_MODE_QPX:
-			return llvm::Type::getInt64Ty(ctx);
-		default:
-			throw Capstone2LlvmIrError("Unhandled mode in getDefaultType().");
-	}
-}
-
-/**
- * TODO: Move to abstract class.
- */
-llvm::Value* Capstone2LlvmIrTranslatorPowerpc_impl::getThisInsnAddress(cs_insn* i)
-{
-	return llvm::ConstantInt::get(getDefaultType(), i->address);
-}
-
-/**
- * TODO: Move to abstract class.
- */
-llvm::Value* Capstone2LlvmIrTranslatorPowerpc_impl::getNextInsnAddress(cs_insn* i)
-{
-	return llvm::ConstantInt::get(getDefaultType(), i->address + i->size);
-}
-
-llvm::Value* Capstone2LlvmIrTranslatorPowerpc_impl::loadRegister(uint32_t r, llvm::IRBuilder<>& irb)
+llvm::Value* Capstone2LlvmIrTranslatorPowerpc_impl::loadRegister(
+		uint32_t r,
+		llvm::IRBuilder<>& irb,
+		llvm::Type* dstType,
+		eOpConv ct)
 {
 	if (r == PPC_REG_INVALID)
 	{
@@ -345,6 +273,9 @@ llvm::Value* Capstone2LlvmIrTranslatorPowerpc_impl::loadRegister(uint32_t r, llv
 	{
 		throw Capstone2LlvmIrError("loadRegister() unhandled reg.");
 	}
+
+	// TODO: do type conversion
+
 	return irb.CreateLoad(llvmReg);
 }
 
@@ -936,70 +867,6 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::storeCr0(
 	storeRegister(PPC_REG_CR0_SO, zero, irb);
 }
 
-/**
- * carry_add()
- * TODO: The same as in x86 module.
- */
-llvm::Value* Capstone2LlvmIrTranslatorPowerpc_impl::genCarryAdd(
-		llvm::Value* add,
-		llvm::Value* op0,
-		llvm::IRBuilder<>& irb)
-{
-	return irb.CreateICmpULT(add, op0);
-}
-
-/**
- * carry_add_c()
- * TODO: The same as in x86 module, but a different carry register is used.
- *
- * If @p cf is not passed, default cf register is used. Why pass it?
- * - Pass cf if you want to generate nicer code - prevent second cf load if
- *   it is already loaded by caller. This should however be taken care of by
- *   after generation optimizations.
- * - Use a different value as cf.
- */
-llvm::Value* Capstone2LlvmIrTranslatorPowerpc_impl::genCarryAddC(
-		llvm::Value* op0,
-		llvm::Value* op1,
-		llvm::IRBuilder<>& irb,
-		llvm::Value* cf)
-{
-	auto* add1 = irb.CreateAdd(op0, op1);
-	if (cf == nullptr)
-	{
-		cf = loadRegister(PPC_REG_CARRY, irb);
-	}
-	auto* cfc = irb.CreateZExtOrTrunc(cf, add1->getType());
-	auto* add2 = irb.CreateAdd(add1, cfc);
-	auto* icmp1 = irb.CreateICmpULE(add2, op0);
-	auto* icmp2 = irb.CreateICmpULT(add1, op0);
-	auto* cff = irb.CreateZExtOrTrunc(cf, irb.getInt1Ty());
-	return irb.CreateSelect(cff, icmp1, icmp2);
-}
-
-/**
- * overflow_add_c()
- * TODO: The same as in x86 module, but a different carry register is used.
- */
-llvm::Value* Capstone2LlvmIrTranslatorPowerpc_impl::genOverflowAddC(
-		llvm::Value* add,
-		llvm::Value* op0,
-		llvm::Value* op1,
-		llvm::IRBuilder<>& irb,
-		llvm::Value* cf)
-{
-	if (cf == nullptr)
-	{
-		cf = loadRegister(PPC_REG_CARRY, irb);
-	}
-	auto* cfc = irb.CreateZExtOrTrunc(cf, add->getType());
-	auto* ofAdd = irb.CreateAdd(add, cfc);
-	auto* xor0 = irb.CreateXor(op0, ofAdd);
-	auto* xor1 = irb.CreateXor(op1, ofAdd);
-	auto* ofAnd = irb.CreateAnd(xor0, xor1);
-	return irb.CreateICmpSLT(ofAnd, llvm::ConstantInt::get(ofAnd->getType(), 0));
-}
-
 bool Capstone2LlvmIrTranslatorPowerpc_impl::isGeneralPurposeRegister(uint32_t r)
 {
 	return PPC_REG_R0 <= r && r <= PPC_REG_R31;
@@ -1064,7 +931,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateAddc(cs_insn* i, cs_ppc* pi
 	auto* add = irb.CreateAdd(op1, op2);
 	storeOp(pi->operands[0], add, irb);
 	storeCr0(irb, pi, add);
-	storeRegister(PPC_REG_CARRY, genCarryAdd(add, op1, irb), irb);
+	storeRegister(PPC_REG_CARRY, generateCarryAdd(add, op1, irb), irb);
 }
 
 /**
@@ -1081,7 +948,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateAdde(cs_insn* i, cs_ppc* pi
 	// TODO: In the original semantics, LT is set using final add, GT and EQ
 	// using first add. Not sure what is ok.
 	storeCr0(irb, pi, add);
-	storeRegister(PPC_REG_CARRY, genCarryAddC(op1, op2, irb, carry), irb);
+	storeRegister(PPC_REG_CARRY, generateCarryAddC(op1, op2, irb, carry), irb);
 }
 
 /**
@@ -1114,7 +981,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateAddme(cs_insn* i, cs_ppc* p
 	storeCr0(irb, pi, sub);
 
 	auto* negativeOne = llvm::ConstantInt::getSigned(op1->getType(), -1);
-	storeRegister(PPC_REG_CARRY, genCarryAddC(op1, negativeOne, irb, carry), irb);
+	storeRegister(PPC_REG_CARRY, generateCarryAddC(op1, negativeOne, irb, carry), irb);
 }
 
 /**
@@ -1133,7 +1000,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateAddze(cs_insn* i, cs_ppc* p
 	storeCr0(irb, pi, add);
 
 	auto* zero = llvm::ConstantInt::get(op1->getType(), 0);
-	storeRegister(PPC_REG_CARRY, genCarryAddC(op1, zero, irb, carry), irb);
+	storeRegister(PPC_REG_CARRY, generateCarryAddC(op1, zero, irb, carry), irb);
 }
 
 /**
@@ -2278,7 +2145,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateSubfc(cs_insn* i, cs_ppc* p
 	storeCr0(irb, pi, val);
 
 	// TODO: This is according to old semantics, but I'm not sure if it is ok.
-	storeRegister(PPC_REG_CARRY, genCarryAddC(op1, op2, irb, irb.getTrue()), irb);
+	storeRegister(PPC_REG_CARRY, generateCarryAddC(op1, op2, irb, irb.getTrue()), irb);
 	// TODO: PPC_INS_SUBFIC was using overflow_add_c() instead in an old
 	// sematics, but these operations looks the same, so I have no idea why.
 	// It may be the same thing.
@@ -2299,7 +2166,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateSubfe(cs_insn* i, cs_ppc* p
 
 	storeOp(pi->operands[0], val, irb);
 	storeCr0(irb, pi, val);
-	storeRegister(PPC_REG_CARRY, genCarryAddC(op1, op2, irb, carry), irb);
+	storeRegister(PPC_REG_CARRY, generateCarryAddC(op1, op2, irb, carry), irb);
 }
 
 /**
@@ -2322,7 +2189,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateSubfme(cs_insn* i, cs_ppc* 
 
 	storeOp(pi->operands[0], val, irb);
 	storeCr0(irb, pi, val);
-	storeRegister(PPC_REG_CARRY, genCarryAddC(op1Neg, negativeOne, irb, carry), irb);
+	storeRegister(PPC_REG_CARRY, generateCarryAddC(op1Neg, negativeOne, irb, carry), irb);
 }
 
 /**
@@ -2339,7 +2206,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateSubfze(cs_insn* i, cs_ppc* 
 	storeOp(pi->operands[0], val, irb);
 	storeCr0(irb, pi, val);
 	auto* zero = llvm::ConstantInt::get(op1Neg->getType(), 0);
-	storeRegister(PPC_REG_CARRY, genCarryAddC(op1Neg, zero, irb, carry), irb);
+	storeRegister(PPC_REG_CARRY, generateCarryAddC(op1Neg, zero, irb, carry), irb);
 }
 
 /**

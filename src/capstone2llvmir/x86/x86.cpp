@@ -38,76 +38,46 @@ Capstone2LlvmIrTranslatorX86_impl::~Capstone2LlvmIrTranslatorX86_impl()
 //
 
 /**
- * x86 is special. When this returns @c true, mode can be used to initialize
- * x86 translator, but it does not have to be possible to modify translator
- * with this mode later. See @c modifyBasicMode().
+ * x86 is special.
+ *
+ * If the original basic mode was not set yet (CS_MODE_LITTLE_ENDIAN), this
+ * returns all the modes that can be used to initialize x86 translator.
+ *
+ * If it was set, x86 allows to change basic mode only to modes lower than the
+ * original initialization mode an back to original mode
+ * (CS_MODE_16 < CS_MODE_32 < CS_MODE_64). This is because the original mode is
+ * used to initialize module's environment with registers and other specific
+ * features. It is possible to simulate lower modes in environments created for
+ * higher modes (e.g. get ax register from eax), but not the other way around
+ * (e.g. get rax from eax).
  */
 bool Capstone2LlvmIrTranslatorX86_impl::isAllowedBasicMode(cs_mode m)
 {
-	return m == CS_MODE_16 || m == CS_MODE_32 || m == CS_MODE_64;
+	if (_origBasicMode == CS_MODE_LITTLE_ENDIAN)
+	{
+		return m == CS_MODE_16 || m == CS_MODE_32 || m == CS_MODE_64;
+	}
+	else if (_origBasicMode == CS_MODE_16)
+	{
+		return m == CS_MODE_16;
+	}
+	else if (_origBasicMode == CS_MODE_32)
+	{
+		return m == CS_MODE_16 || m == CS_MODE_32;
+	}
+	else if (_origBasicMode == CS_MODE_64)
+	{
+		return m == CS_MODE_16 || m == CS_MODE_32 || m == CS_MODE_64;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 bool Capstone2LlvmIrTranslatorX86_impl::isAllowedExtraMode(cs_mode m)
 {
 	return m == CS_MODE_LITTLE_ENDIAN || m == CS_MODE_BIG_ENDIAN;
-}
-
-/**
- * x86 allows to change basic mode only to modes lower than the original
- * initialization mode an back to original mode (CS_MODE_16 < CS_MODE_32
- * < CS_MODE_64). This is because the original mode is used to initialize
- * module's environment with registers and other specific features. It is
- * possible to simulate lower modes in environments created for higher modes
- * (e.g. get ax register from eax), but not the other way around (e.g. get
- * rax from eax).
- */
-void Capstone2LlvmIrTranslatorX86_impl::modifyBasicMode(cs_mode m)
-{
-	if (!isAllowedBasicMode(m))
-	{
-		throw Capstone2LlvmIrModeError(
-				_arch,
-				m,
-				Capstone2LlvmIrModeError::eType::BASIC_MODE);
-	}
-
-	if ((_origBasicMode == CS_MODE_16)
-			|| (_origBasicMode == CS_MODE_32 && m == CS_MODE_64))
-	{
-		throw Capstone2LlvmIrModeError(
-				_arch,
-				m,
-				Capstone2LlvmIrModeError::eType::BASIC_MODE_CHANGE);
-	}
-
-	if (cs_option(_handle, CS_OPT_MODE, m + _extraMode) != CS_ERR_OK)
-	{
-		throw CapstoneError(cs_errno(_handle));
-	}
-
-	_basicMode = m;
-}
-
-/**
- * It does not really make sense to change extra mode (little <-> big endian)
- * for x86 architecture, but it should not crash or anything, so whatever.
- */
-void Capstone2LlvmIrTranslatorX86_impl::modifyExtraMode(cs_mode m)
-{
-	if (!isAllowedExtraMode(m))
-	{
-		throw Capstone2LlvmIrModeError(
-				_arch,
-				m,
-				Capstone2LlvmIrModeError::eType::EXTRA_MODE);
-	}
-
-	if (cs_option(_handle, CS_OPT_MODE, m + _basicMode) != CS_ERR_OK)
-	{
-		throw CapstoneError(cs_errno(_handle));
-	}
-
-	_extraMode = m;
 }
 
 uint32_t Capstone2LlvmIrTranslatorX86_impl::getArchByteSize()
@@ -123,11 +93,6 @@ uint32_t Capstone2LlvmIrTranslatorX86_impl::getArchByteSize()
 			break;
 		}
 	}
-}
-
-uint32_t Capstone2LlvmIrTranslatorX86_impl::getArchBitSize()
-{
-	return getArchByteSize() * 8;
 }
 
 //
@@ -221,6 +186,11 @@ void Capstone2LlvmIrTranslatorX86_impl::generateRegisters()
 	}
 }
 
+uint32_t Capstone2LlvmIrTranslatorX86_impl::getCarryRegister()
+{
+	return X86_REG_CF;
+}
+
 void Capstone2LlvmIrTranslatorX86_impl::translateInstruction(
 		cs_insn* i,
 		llvm::IRBuilder<>& irb)
@@ -274,8 +244,6 @@ void Capstone2LlvmIrTranslatorX86_impl::translateInstruction(
 		if (xi->prefix[0] == X86_PREFIX_REP
 				&& handledReps.find(i->id) == handledReps.end())
 		{
-//std::cout << "prefix[0] == X86_PREFIX_REP @ " << std::hex << i->address << std::endl;
-//exit(1);
 //			assert(false && "rep prefix not handled");
 			return;
 		}
@@ -286,9 +254,6 @@ void Capstone2LlvmIrTranslatorX86_impl::translateInstruction(
 		else if (xi->prefix[0] == X86_PREFIX_REPNE
 				&& handledRepnes.find(i->id) == handledRepnes.end())
 		{
-//std::cout << "prefix[0] == X86_PREFIX_REPNE @ " << std::hex << i->address << std::endl;
-//std::cout << i->mnemonic << " " << i->op_str << std::endl;
-//exit(1);
 //			assert(false && "repne prefix not handled");
 			return;
 		}
@@ -311,7 +276,6 @@ void Capstone2LlvmIrTranslatorX86_impl::translateInstruction(
 	if (fIt != _i2fm.end() && fIt->second != nullptr)
 	{
 		auto f = fIt->second;
-//std::cout << std::hex << i->address << " @ " << i->mnemonic << " " << i->op_str << std::endl;
 		(this->*f)(i, xi, irb);
 	}
 	else
@@ -660,18 +624,6 @@ void Capstone2LlvmIrTranslatorX86_impl::generateRegisters64()
 //==============================================================================
 //
 
-llvm::Type* Capstone2LlvmIrTranslatorX86_impl::getDefaultType()
-{
-	auto& ctx = _module->getContext();
-	switch (_origBasicMode)
-	{
-		case CS_MODE_16: return llvm::Type::getInt16Ty(ctx);
-		case CS_MODE_32: return llvm::Type::getInt32Ty(ctx);
-		case CS_MODE_64: return llvm::Type::getInt64Ty(ctx);
-		default: throw Capstone2LlvmIrError("Unhandled original mode.");
-	}
-}
-
 llvm::Value* Capstone2LlvmIrTranslatorX86_impl::loadRegister(
 		uint32_t r,
 		llvm::IRBuilder<>& irb,
@@ -903,9 +855,9 @@ void Capstone2LlvmIrTranslatorX86_impl::storeRegistersPlusSflags(
 		const std::vector<std::pair<uint32_t, llvm::Value*>>& regs)
 {
 	storeRegisters(irb, regs);
-	storeRegister(X86_REG_ZF, genZeroFlag(sflagsVal, irb), irb);
-	storeRegister(X86_REG_SF, genSignFlag(sflagsVal, irb), irb);
-	storeRegister(X86_REG_PF, genParityFlag(sflagsVal, irb), irb);
+	storeRegister(X86_REG_ZF, generateZeroFlag(sflagsVal, irb), irb);
+	storeRegister(X86_REG_SF, generateSignFlag(sflagsVal, irb), irb);
+	storeRegister(X86_REG_PF, generateParityFlag(sflagsVal, irb), irb);
 }
 
 llvm::Value* Capstone2LlvmIrTranslatorX86_impl::loadX87Top(llvm::IRBuilder<>& irb)
@@ -1367,230 +1319,7 @@ llvm::Instruction* Capstone2LlvmIrTranslatorX86_impl::setOpFloat(
 	return setOp(op, val, irb, ct, true);
 }
 
-/**
- * carry_add_int4()
- */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCarryAddInt4(
-		llvm::Value* op0,
-		llvm::Value* op1,
-		llvm::IRBuilder<>& irb)
-{
-	auto* ci15 = llvm::ConstantInt::get(op0->getType(), 15);
-	auto* and0 = irb.CreateAnd(op0, ci15);
-	auto* and1 = irb.CreateAnd(op1, ci15);
-	auto* add = irb.CreateAdd(and0, and1);
-	return irb.CreateICmpUGT(add, ci15);
-}
-
-/**
- * carry_add_c_int4()
- */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCarryAddCInt4(
-		llvm::Value* op0,
-		llvm::Value* op1,
-		llvm::IRBuilder<>& irb,
-		llvm::Value* cf)
-{
-	auto* ci15 = llvm::ConstantInt::get(op0->getType(), 15);
-	auto* and0 = irb.CreateAnd(op0, ci15);
-	auto* and1 = irb.CreateAnd(op1, ci15);
-	auto* a = irb.CreateAdd(and0, and1);
-	if (cf == nullptr)
-	{
-		cf = loadRegister(X86_REG_CF, irb, a->getType(), eOpConv::ZEXT_TRUNC);
-	}
-	auto* cfc = irb.CreateZExtOrTrunc(cf, a->getType());
-	auto* add = irb.CreateAdd(a, cfc);
-	return irb.CreateICmpUGT(add, ci15);
-}
-
-/**
- * carry_add()
- */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCarryAdd(
-		llvm::Value* add,
-		llvm::Value* op0,
-		llvm::IRBuilder<>& irb)
-{
-	return irb.CreateICmpULT(add, op0);
-}
-
-/**
- * carry_add_c()
- *
- * If @p cf is not passed, default cf register is used. Why pass it?
- * - Pass cf if you want to generate nicer code - prevent second cf load if
- *   it is already loaded by caller. This should however be taken care of by
- *   after generation optimizations.
- * - Use a different value as cf - see adcx/adox.
- */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCarryAddC(
-		llvm::Value* op0,
-		llvm::Value* op1,
-		llvm::IRBuilder<>& irb,
-		llvm::Value* cf)
-{
-	auto* add1 = irb.CreateAdd(op0, op1);
-	if (cf == nullptr)
-	{
-		cf = loadRegister(X86_REG_CF, irb);
-	}
-	auto* cfc = irb.CreateZExtOrTrunc(cf, add1->getType());
-	auto* add2 = irb.CreateAdd(add1, cfc);
-	auto* icmp1 = irb.CreateICmpULE(add2, op0);
-	auto* icmp2 = irb.CreateICmpULT(add1, op0);
-	auto* cff = irb.CreateZExtOrTrunc(cf, irb.getInt1Ty());
-	return irb.CreateSelect(cff, icmp1, icmp2);
-}
-
-/**
- * overflow_add()
- */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genOverflowAdd(
-		llvm::Value* add,
-		llvm::Value* op0,
-		llvm::Value* op1,
-		llvm::IRBuilder<>& irb)
-{
-	auto* xor0 = irb.CreateXor(op0, add);
-	auto* xor1 = irb.CreateXor(op1, add);
-	auto* ofAnd = irb.CreateAnd(xor0, xor1);
-	return irb.CreateICmpSLT(ofAnd, llvm::ConstantInt::get(ofAnd->getType(), 0));
-}
-
-/**
- * overflow_add_c()
- */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genOverflowAddC(
-		llvm::Value* add,
-		llvm::Value* op0,
-		llvm::Value* op1,
-		llvm::IRBuilder<>& irb,
-		llvm::Value* cf)
-{
-	if (cf == nullptr)
-	{
-		cf = loadRegister(X86_REG_CF, irb, add->getType(), eOpConv::ZEXT_TRUNC);
-	}
-	auto* cfc = irb.CreateZExtOrTrunc(cf, add->getType());
-	auto* ofAdd = irb.CreateAdd(add, cfc);
-	auto* xor0 = irb.CreateXor(op0, ofAdd);
-	auto* xor1 = irb.CreateXor(op1, ofAdd);
-	auto* ofAnd = irb.CreateAnd(xor0, xor1);
-	return irb.CreateICmpSLT(ofAnd, llvm::ConstantInt::get(ofAnd->getType(), 0));
-}
-
-/**
- * borrow_sub_int4()
- */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genBorrowSubInt4(
-		llvm::Value* op0,
-		llvm::Value* op1,
-		llvm::IRBuilder<>& irb)
-{
-	auto* ci15 = llvm::ConstantInt::get(op0->getType(), 15);
-	auto* and0 = irb.CreateAnd(op0, ci15);
-	auto* and1 = irb.CreateAnd(op1, ci15);
-	auto* afSub = irb.CreateSub(and0, and1);
-	return irb.CreateICmpUGT(afSub, ci15);
-}
-
-/**
- * borrow_sub_c_int4()
- */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genBorrowSubCInt4(
-		llvm::Value* op0,
-		llvm::Value* op1,
-		llvm::IRBuilder<>& irb,
-		llvm::Value* cf)
-{
-	auto* ci15 = llvm::ConstantInt::get(op0->getType(), 15);
-	auto* and0 = irb.CreateAnd(op0, ci15);
-	auto* and1 = irb.CreateAnd(op1, ci15);
-	auto* sub = irb.CreateSub(and0, and1);
-	if (cf == nullptr)
-	{
-		cf = loadRegister(X86_REG_CF, irb, sub->getType(), eOpConv::ZEXT_TRUNC);
-	}
-	auto* cfc = irb.CreateZExtOrTrunc(cf, sub->getType());
-	auto* add = irb.CreateAdd(sub, cfc);
-	return irb.CreateICmpUGT(add, ci15);
-}
-
-/**
- * borrow_sub()
- */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genBorrowSub(
-		llvm::Value* op0,
-		llvm::Value* op1,
-		llvm::IRBuilder<>& irb)
-{
-	return irb.CreateICmpULT(op0, op1);
-}
-
-/**
- * borrow_sub_c()
- */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genBorrowSubC(
-		llvm::Value* sub,
-		llvm::Value* op0,
-		llvm::Value* op1,
-		llvm::IRBuilder<>& irb,
-		llvm::Value* cf)
-{
-	if (cf == nullptr)
-	{
-		cf = loadRegister(X86_REG_CF, irb);
-	}
-	auto* cfc = irb.CreateZExtOrTrunc(cf, sub->getType());
-	auto* cfSub = irb.CreateSub(sub, cfc);
-	auto* cfIcmp1 = irb.CreateICmpULT(op0, cfSub);
-	auto* negOne = llvm::ConstantInt::getSigned(op1->getType(), -1);
-	auto* cfIcmp2 = irb.CreateICmpULT(op1, negOne);
-	auto* cfOr = irb.CreateOr(cfIcmp1, cfIcmp2);
-	auto* cfIcmp3 = irb.CreateICmpULT(op0, op1);
-	auto* cff = irb.CreateZExtOrTrunc(cf, irb.getInt1Ty());
-	return irb.CreateSelect(cff, cfOr, cfIcmp3);
-}
-
-/**
- * overflow_sub()
- */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genOverflowSub(
-		llvm::Value* sub,
-		llvm::Value* op0,
-		llvm::Value* op1,
-		llvm::IRBuilder<>& irb)
-{
-	auto* xor0 = irb.CreateXor(op0, op1);
-	auto* xor1 = irb.CreateXor(op0, sub);
-	auto* ofAnd = irb.CreateAnd(xor0, xor1);
-	return irb.CreateICmpSLT(ofAnd, llvm::ConstantInt::get(ofAnd->getType(), 0));
-}
-
-/**
- * overflow_sub_c()
- */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genOverflowSubC(
-		llvm::Value* sub,
-		llvm::Value* op0,
-		llvm::Value* op1,
-		llvm::IRBuilder<>& irb,
-		llvm::Value* cf)
-{
-	if (cf == nullptr)
-	{
-		cf = loadRegister(X86_REG_CF, irb);
-	}
-	auto* cfc = irb.CreateZExtOrTrunc(cf, sub->getType());
-	auto* ofSub = irb.CreateSub(sub, cfc);
-	auto* xor0 = irb.CreateXor(op0, op1);
-	auto* xor1 = irb.CreateXor(op0, ofSub);
-	auto* ofAnd = irb.CreateAnd(xor0, xor1);
-	return irb.CreateICmpSLT(ofAnd, llvm::ConstantInt::get(ofAnd->getType(), 0));
-}
-
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genZeroFlag(
+llvm::Value* Capstone2LlvmIrTranslatorX86_impl::generateZeroFlag(
 		llvm::Value* val,
 		llvm::IRBuilder<>& irb)
 {
@@ -1598,7 +1327,7 @@ llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genZeroFlag(
 	return irb.CreateICmpEQ(val, zero);
 }
 
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genSignFlag(
+llvm::Value* Capstone2LlvmIrTranslatorX86_impl::generateSignFlag(
 		llvm::Value* val,
 		llvm::IRBuilder<>& irb)
 {
@@ -1613,7 +1342,7 @@ llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genSignFlag(
  * (val & 1) (== 1) -> odd
  * (val & 1) == 0   -> even
  */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genParityFlag(
+llvm::Value* Capstone2LlvmIrTranslatorX86_impl::generateParityFlag(
 		llvm::Value* val,
 		llvm::IRBuilder<>& irb)
 {
@@ -1632,9 +1361,9 @@ void Capstone2LlvmIrTranslatorX86_impl::genSetSflags(
 		llvm::Value* val,
 		llvm::IRBuilder<>& irb)
 {
-	storeRegister(X86_REG_ZF, genZeroFlag(val, irb), irb);
-	storeRegister(X86_REG_SF, genSignFlag(val, irb), irb);
-	storeRegister(X86_REG_PF, genParityFlag(val, irb), irb);
+	storeRegister(X86_REG_ZF, generateZeroFlag(val, irb), irb);
+	storeRegister(X86_REG_SF, generateSignFlag(val, irb), irb);
+	storeRegister(X86_REG_PF, generateParityFlag(val, irb), irb);
 }
 
 /**
@@ -1979,10 +1708,10 @@ void Capstone2LlvmIrTranslatorX86_impl::translateAdc(cs_insn* i, cs_x86* xi, llv
 	if (i->id == X86_INS_ADC)
 	{
 		storeRegistersPlusSflags(irb, add, {
-				{X86_REG_AF, genCarryAddCInt4(op0, op1, irb, cf)},
-				{X86_REG_OF, genOverflowAddC(add, op0, op1, irb, cf)}});
+				{X86_REG_AF, generateCarryAddCInt4(op0, op1, irb, cf)},
+				{X86_REG_OF, generateOverflowAddC(add, op0, op1, irb, cf)}});
 	}
-	storeRegister(cfReg, genCarryAddC(op0, op1, irb, cf), irb);
+	storeRegister(cfReg, generateCarryAddC(op0, op1, irb, cf), irb);
 	setOp(xi->operands[0], add, irb);
 }
 
@@ -1996,9 +1725,9 @@ void Capstone2LlvmIrTranslatorX86_impl::translateAdd(cs_insn* i, cs_x86* xi, llv
 	auto* add = irb.CreateAdd(op0, op1);
 
 	storeRegistersPlusSflags(irb, add, {
-			{X86_REG_AF, genCarryAddInt4(op0, op1, irb)},
-			{X86_REG_CF, genCarryAdd(add, op0, irb)},
-			{X86_REG_OF, genOverflowAdd(add, op0, op1, irb)}});
+			{X86_REG_AF, generateCarryAddInt4(op0, op1, irb)},
+			{X86_REG_CF, generateCarryAdd(add, op0, irb)},
+			{X86_REG_OF, generateOverflowAdd(add, op0, op1, irb)}});
 	setOp(xi->operands[0], add, irb);
 	if (i->id == X86_INS_XADD)
 	{
@@ -2251,9 +1980,9 @@ void Capstone2LlvmIrTranslatorX86_impl::translateCmpxchg(cs_insn* i, cs_x86* xi,
 	auto* sub = irb.CreateSub(accum, op0);
 
 	storeRegistersPlusSflags(irb, sub, {
-			{X86_REG_AF, genBorrowSubInt4(accum, op0, irb)},
-			{X86_REG_CF, genBorrowSub(accum, op0, irb)},
-			{X86_REG_OF, genOverflowSub(sub, accum, op1, irb)}});
+			{X86_REG_AF, generateBorrowSubInt4(accum, op0, irb)},
+			{X86_REG_CF, generateBorrowSub(accum, op0, irb)},
+			{X86_REG_OF, generateOverflowSub(sub, accum, op1, irb)}});
 	// If-then-else construction could be used here for more straightforward
 	// code, but that would create BBs inside ASM instruction, which should be
 	// avoided whenever possible.
@@ -2336,9 +2065,9 @@ void Capstone2LlvmIrTranslatorX86_impl::translateDec(cs_insn* i, cs_x86* xi, llv
 	auto* sub = irb.CreateSub(op0, op1);
 
 	storeRegistersPlusSflags(irb, sub, {
-			{X86_REG_AF, genBorrowSubInt4(op0, op1, irb)},
+			{X86_REG_AF, generateBorrowSubInt4(op0, op1, irb)},
 			// CF not changed.
-			{X86_REG_OF, genOverflowSub(sub, op0, op1, irb)}});
+			{X86_REG_OF, generateOverflowSub(sub, op0, op1, irb)}});
 	setOp(xi->operands[0], sub, irb);
 }
 
@@ -2405,9 +2134,9 @@ void Capstone2LlvmIrTranslatorX86_impl::translateInc(cs_insn* i, cs_x86* xi, llv
 	auto* add = irb.CreateAdd(op0, op1);
 
 	storeRegistersPlusSflags(irb, add, {
-			{X86_REG_AF, genCarryAddInt4(op0, op1, irb)},
+			{X86_REG_AF, generateCarryAddInt4(op0, op1, irb)},
 			// CF not changed.
-			{X86_REG_OF, genOverflowAdd(add, op0, op1, irb)}});
+			{X86_REG_OF, generateOverflowAdd(add, op0, op1, irb)}});
 	setOp(xi->operands[0], add, irb);
 }
 
@@ -2844,7 +2573,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateNeg(cs_insn* i, cs_x86* xi, llv
 	auto* sub = irb.CreateSub(zero, op0);
 
 	storeRegistersPlusSflags(irb, sub, {
-			{X86_REG_AF, genBorrowSubInt4(zero, op0, irb)},
+			{X86_REG_AF, generateBorrowSubInt4(zero, op0, irb)},
 			{X86_REG_CF, irb.CreateICmpNE(op0, zero)},
 			{X86_REG_OF, zero}});
 	setOp(xi->operands[0], sub, irb);
@@ -3336,9 +3065,9 @@ void Capstone2LlvmIrTranslatorX86_impl::translateSbb(cs_insn* i, cs_x86* xi, llv
 	auto* sub = irb.CreateAdd(sub1, cf); // Yes, this really is add.
 
 	storeRegistersPlusSflags(irb, sub, {
-			{X86_REG_AF, genBorrowSubCInt4(op0, op1, irb)},
-			{X86_REG_CF, genBorrowSubC(sub1, op0, op1, irb)}, // Really sub1.
-			{X86_REG_OF, genOverflowSubC(sub1, op0, op1, irb)}}); // Really sub1.
+			{X86_REG_AF, generateBorrowSubCInt4(op0, op1, irb)},
+			{X86_REG_CF, generateBorrowSubC(sub1, op0, op1, irb)}, // Really sub1.
+			{X86_REG_OF, generateOverflowSubC(sub1, op0, op1, irb)}}); // Really sub1.
 	setOp(xi->operands[0], sub, irb);
 }
 
@@ -3704,9 +3433,9 @@ void Capstone2LlvmIrTranslatorX86_impl::translateSub(cs_insn* i, cs_x86* xi, llv
 	auto* sub = irb.CreateSub(op0, op1);
 
 	storeRegistersPlusSflags(irb, sub, {
-			{X86_REG_AF, genBorrowSubInt4(op0, op1, irb)},
-			{X86_REG_CF, genBorrowSub(op0, op1, irb)},
-			{X86_REG_OF, genOverflowSub(sub, op0, op1, irb)}});
+			{X86_REG_AF, generateBorrowSubInt4(op0, op1, irb)},
+			{X86_REG_CF, generateBorrowSub(op0, op1, irb)},
+			{X86_REG_OF, generateOverflowSub(sub, op0, op1, irb)}});
 	if (i->id == X86_INS_SUB)
 	{
 		setOp(xi->operands[0], sub, irb);
@@ -3984,9 +3713,9 @@ void Capstone2LlvmIrTranslatorX86_impl::translateScanString(cs_insn* i, cs_x86* 
 	auto* sub = body.CreateSub(op0, op1);
 
 	storeRegistersPlusSflags(body, sub, {
-			{X86_REG_AF, genBorrowSubInt4(op0, op1, body)},
-			{X86_REG_CF, genBorrowSub(op0, op1, body)},
-			{X86_REG_OF, genOverflowSub(sub, op0, op1, body)}});
+			{X86_REG_AF, generateBorrowSubInt4(op0, op1, body)},
+			{X86_REG_CF, generateBorrowSub(op0, op1, body)},
+			{X86_REG_OF, generateOverflowSub(sub, op0, op1, body)}});
 
 	// We need to modify DI/EDI/RDI, it should be base register in memory op1.
 	cs_x86_op& o1 = xi->operands[1];
@@ -4063,9 +3792,9 @@ void Capstone2LlvmIrTranslatorX86_impl::translateCompareString(cs_insn* i, cs_x8
 	auto* sub = body.CreateSub(op0, op1);
 
 	storeRegistersPlusSflags(body, sub, {
-			{X86_REG_AF, genBorrowSubInt4(op0, op1, body)},
-			{X86_REG_CF, genBorrowSub(op0, op1, body)},
-			{X86_REG_OF, genOverflowSub(sub, op0, op1, body)}});
+			{X86_REG_AF, generateBorrowSubInt4(op0, op1, body)},
+			{X86_REG_CF, generateBorrowSub(op0, op1, body)},
+			{X86_REG_OF, generateOverflowSub(sub, op0, op1, body)}});
 
 	// We need to modify SI/ESI/RSI, it should be base register in memory op0.
 	cs_x86_op& o0 = xi->operands[0];

@@ -31,10 +31,7 @@ class Capstone2LlvmIrTranslatorX86_impl :
 	public:
 		virtual bool isAllowedBasicMode(cs_mode m) override;
 		virtual bool isAllowedExtraMode(cs_mode m) override;
-		virtual void modifyBasicMode(cs_mode m) override;
-		virtual void modifyExtraMode(cs_mode m) override;
 		virtual uint32_t getArchByteSize() override;
-		virtual uint32_t getArchBitSize() override;
 //
 //==============================================================================
 // x86 specialization methods - from Capstone2LlvmIrTranslatorX86
@@ -58,6 +55,7 @@ class Capstone2LlvmIrTranslatorX86_impl :
 		virtual void generateEnvironmentArchSpecific() override;
 		virtual void generateDataLayout() override;
 		virtual void generateRegisters() override;
+		virtual uint32_t getCarryRegister() override;
 
 		virtual void translateInstruction(
 				cs_insn* i,
@@ -91,13 +89,11 @@ class Capstone2LlvmIrTranslatorX86_impl :
 		virtual llvm::Value* getCurrentPc(cs_insn* i);
 
 	protected:
-		llvm::Type* getDefaultType();
-
-		llvm::Value* loadRegister(
+		virtual llvm::Value* loadRegister(
 				uint32_t r,
 				llvm::IRBuilder<>& irb,
 				llvm::Type* dstType = nullptr,
-				eOpConv ct = eOpConv::THROW);
+				eOpConv ct = eOpConv::THROW) override;
 		llvm::StoreInst* storeRegister(
 				uint32_t r,
 				llvm::Value* val,
@@ -178,68 +174,9 @@ class Capstone2LlvmIrTranslatorX86_impl :
 				llvm::IRBuilder<>& irb,
 				eOpConv ct = eOpConv::FP_CAST);
 
-		llvm::Value* genCarryAddInt4(
-				llvm::Value* op0,
-				llvm::Value* op1,
-				llvm::IRBuilder<>& irb);
-		llvm::Value* genCarryAddCInt4(
-				llvm::Value* op0,
-				llvm::Value* op1,
-				llvm::IRBuilder<>& irb,
-				llvm::Value* cf = nullptr);
-		llvm::Value* genCarryAdd(
-				llvm::Value* add,
-				llvm::Value* op0,
-				llvm::IRBuilder<>& irb);
-		llvm::Value* genCarryAddC(
-				llvm::Value* op0,
-				llvm::Value* op1,
-				llvm::IRBuilder<>& irb,
-				llvm::Value* cf = nullptr);
-		llvm::Value* genOverflowAdd(
-				llvm::Value* add,
-				llvm::Value* op0,
-				llvm::Value* op1,
-				llvm::IRBuilder<>& irb);
-		llvm::Value* genOverflowAddC(
-				llvm::Value* add,
-				llvm::Value* op0,
-				llvm::Value* op1,
-				llvm::IRBuilder<>& irb,
-				llvm::Value* cf = nullptr);
-		llvm::Value* genBorrowSubInt4(
-				llvm::Value* op0,
-				llvm::Value* op1,
-				llvm::IRBuilder<>& irb);
-		llvm::Value* genBorrowSubCInt4(
-				llvm::Value* op0,
-				llvm::Value* op1,
-				llvm::IRBuilder<>& irb,
-				llvm::Value* cf = nullptr);
-		llvm::Value* genBorrowSub(
-				llvm::Value* op0,
-				llvm::Value* op1,
-				llvm::IRBuilder<>& irb);
-		llvm::Value* genBorrowSubC(
-				llvm::Value* sub,
-				llvm::Value* op0,
-				llvm::Value* op1,
-				llvm::IRBuilder<>& irb,
-				llvm::Value* cf = nullptr);
-		llvm::Value* genOverflowSub(
-				llvm::Value* sub,
-				llvm::Value* op0,
-				llvm::Value* op1,
-				llvm::IRBuilder<>& irb);
-		llvm::Value* genOverflowSubC(
-				llvm::Value* sub,
-				llvm::Value* op0,
-				llvm::Value* op1,
-				llvm::IRBuilder<>& irb,
-				llvm::Value* cf = nullptr);
-		llvm::Value* genZeroFlag(llvm::Value* val, llvm::IRBuilder<>& irb);
-		llvm::Value* genSignFlag(llvm::Value* val, llvm::IRBuilder<>& irb);
-		llvm::Value* genParityFlag(llvm::Value* val, llvm::IRBuilder<>& irb);
+		llvm::Value* generateZeroFlag(llvm::Value* val, llvm::IRBuilder<>& irb);
+		llvm::Value* generateSignFlag(llvm::Value* val, llvm::IRBuilder<>& irb);
+		llvm::Value* generateParityFlag(llvm::Value* val, llvm::IRBuilder<>& irb);
 		void genSetSflags(
 				llvm::Value* val,
 				llvm::IRBuilder<>& irb);
@@ -300,8 +237,6 @@ class Capstone2LlvmIrTranslatorX86_impl :
 		llvm::Value* top = nullptr;
 		llvm::Value* idx = nullptr;
 
-		// TODO: This is a hack, sometimes we need cs_insn deep in helper
-		// methods like @c loadRegister() where it is hard to propagate it.
 		cs_insn* _insn = nullptr;
 
 		///
