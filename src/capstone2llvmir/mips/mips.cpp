@@ -7,29 +7,29 @@
 #include <iomanip>
 #include <iostream>
 
-#include "retdec/capstone2llvmir/mips/mips.h"
+#include "capstone2llvmir/mips/mips_impl.h"
 
 namespace retdec {
 namespace capstone2llvmir {
 
-Capstone2LlvmIrTranslatorMips::Capstone2LlvmIrTranslatorMips(
+Capstone2LlvmIrTranslatorMips_impl::Capstone2LlvmIrTranslatorMips_impl(
 		llvm::Module* m,
 		cs_mode basic,
 		cs_mode extra)
 		:
-		Capstone2LlvmIrTranslator(CS_ARCH_MIPS, basic, extra, m)
+		Capstone2LlvmIrTranslator_impl(CS_ARCH_MIPS, basic, extra, m)
 {
 	// This needs to be called from concrete's class ctor, not abstract's
 	// class ctor, so that virtual table is properly initialized.
 	initialize();
 }
 
-Capstone2LlvmIrTranslatorMips::~Capstone2LlvmIrTranslatorMips()
+Capstone2LlvmIrTranslatorMips_impl::~Capstone2LlvmIrTranslatorMips_impl()
 {
 	// Nothing specific to MIPS.
 }
 
-bool Capstone2LlvmIrTranslatorMips::isAllowedBasicMode(cs_mode m)
+bool Capstone2LlvmIrTranslatorMips_impl::isAllowedBasicMode(cs_mode m)
 {
 	return m == CS_MODE_MIPS32
 			|| m == CS_MODE_MIPS64
@@ -37,7 +37,7 @@ bool Capstone2LlvmIrTranslatorMips::isAllowedBasicMode(cs_mode m)
 			|| m == CS_MODE_MIPS32R6;
 }
 
-bool Capstone2LlvmIrTranslatorMips::isAllowedExtraMode(cs_mode m)
+bool Capstone2LlvmIrTranslatorMips_impl::isAllowedExtraMode(cs_mode m)
 {
 	return m == CS_MODE_LITTLE_ENDIAN
 			|| m == CS_MODE_BIG_ENDIAN
@@ -49,7 +49,7 @@ bool Capstone2LlvmIrTranslatorMips::isAllowedExtraMode(cs_mode m)
  * different registers sizes?
  * Can this be moved to abstract class?
  */
-void Capstone2LlvmIrTranslatorMips::modifyBasicMode(cs_mode m)
+void Capstone2LlvmIrTranslatorMips_impl::modifyBasicMode(cs_mode m)
 {
 	if (!isAllowedBasicMode(m))
 	{
@@ -71,7 +71,7 @@ void Capstone2LlvmIrTranslatorMips::modifyBasicMode(cs_mode m)
  * TODO: This could be the same for multiple architectures, move to abstract
  * class?
  */
-void Capstone2LlvmIrTranslatorMips::modifyExtraMode(cs_mode m)
+void Capstone2LlvmIrTranslatorMips_impl::modifyExtraMode(cs_mode m)
 {
 	if (!isAllowedExtraMode(m))
 	{
@@ -89,7 +89,7 @@ void Capstone2LlvmIrTranslatorMips::modifyExtraMode(cs_mode m)
 	_extraMode = m;
 }
 
-uint32_t Capstone2LlvmIrTranslatorMips::getArchByteSize()
+uint32_t Capstone2LlvmIrTranslatorMips_impl::getArchByteSize()
 {
 	switch (_basicMode)
 	{
@@ -111,22 +111,22 @@ uint32_t Capstone2LlvmIrTranslatorMips::getArchByteSize()
  * TODO: This could be the same for multiple architectures, move to abstract
  * class?
  */
-uint32_t Capstone2LlvmIrTranslatorMips::getArchBitSize()
+uint32_t Capstone2LlvmIrTranslatorMips_impl::getArchBitSize()
 {
 	return getArchByteSize() * 8;
 }
 
-bool Capstone2LlvmIrTranslatorMips::hasDelaySlot(uint32_t id) const
+bool Capstone2LlvmIrTranslatorMips_impl::hasDelaySlot(uint32_t id) const
 {
 	return getDelaySlot(id);
 }
 
-bool Capstone2LlvmIrTranslatorMips::hasDelaySlotTypical(uint32_t id) const
+bool Capstone2LlvmIrTranslatorMips_impl::hasDelaySlotTypical(uint32_t id) const
 {
 	return getDelaySlot(id) && !hasDelaySlotLikely(id);
 }
 
-bool Capstone2LlvmIrTranslatorMips::hasDelaySlotLikely(uint32_t id) const
+bool Capstone2LlvmIrTranslatorMips_impl::hasDelaySlotLikely(uint32_t id) const
 {
 	static std::set<uint32_t> set =
 	{
@@ -141,7 +141,7 @@ bool Capstone2LlvmIrTranslatorMips::hasDelaySlotLikely(uint32_t id) const
  * At the moment, all instructions here have delay slot of size 1.
  * If there are some instructions with different sized slots, we will need map.
  */
-std::size_t Capstone2LlvmIrTranslatorMips::getDelaySlot(uint32_t id) const
+std::size_t Capstone2LlvmIrTranslatorMips_impl::getDelaySlot(uint32_t id) const
 {
 	static std::set<uint32_t> set =
 	{
@@ -160,12 +160,12 @@ std::size_t Capstone2LlvmIrTranslatorMips::getDelaySlot(uint32_t id) const
 	return set.count(id);
 }
 
-void Capstone2LlvmIrTranslatorMips::generateEnvironmentArchSpecific()
+void Capstone2LlvmIrTranslatorMips_impl::generateEnvironmentArchSpecific()
 {
 	// Nothing.
 }
 
-void Capstone2LlvmIrTranslatorMips::generateDataLayout()
+void Capstone2LlvmIrTranslatorMips_impl::generateDataLayout()
 {
 	switch (_basicMode)
 	{
@@ -193,7 +193,7 @@ void Capstone2LlvmIrTranslatorMips::generateDataLayout()
 	}
 }
 
-void Capstone2LlvmIrTranslatorMips::generateRegisters()
+void Capstone2LlvmIrTranslatorMips_impl::generateRegisters()
 {
 	// Program counter.
 	//
@@ -359,7 +359,7 @@ void Capstone2LlvmIrTranslatorMips::generateRegisters()
 	createRegister(MIPS_REG_MPL2, _regLt);
 }
 
-void Capstone2LlvmIrTranslatorMips::translateInstruction(
+void Capstone2LlvmIrTranslatorMips_impl::translateInstruction(
 		cs_insn* i,
 		llvm::IRBuilder<>& irb)
 {
@@ -389,7 +389,7 @@ void Capstone2LlvmIrTranslatorMips::translateInstruction(
 /**
  * TODO: Maybe this could be done in an abstract class level?
  */
-llvm::IntegerType* Capstone2LlvmIrTranslatorMips::getDefaultType()
+llvm::IntegerType* Capstone2LlvmIrTranslatorMips_impl::getDefaultType()
 {
 	auto& ctx = _module->getContext();
 	switch (_basicMode)
@@ -410,7 +410,7 @@ llvm::IntegerType* Capstone2LlvmIrTranslatorMips::getDefaultType()
  * compute the current pc the same -- address of the next instruction.
  * TODO: Is current PC on MIPS address of the next instruction?
  */
-llvm::Value* Capstone2LlvmIrTranslatorMips::getCurrentPc(cs_insn* i)
+llvm::Value* Capstone2LlvmIrTranslatorMips_impl::getCurrentPc(cs_insn* i)
 {
 	return getNextInsnAddress(i);
 }
@@ -421,7 +421,7 @@ llvm::Value* Capstone2LlvmIrTranslatorMips::getCurrentPc(cs_insn* i)
  * this method in all the places that truly want next instruction address.
  * Also, make sure @c getNextNextInsnAddress() should not be used instead.
  */
-llvm::Value* Capstone2LlvmIrTranslatorMips::getNextInsnAddress(cs_insn* i)
+llvm::Value* Capstone2LlvmIrTranslatorMips_impl::getNextInsnAddress(cs_insn* i)
 {
 	return llvm::ConstantInt::get(getDefaultType(), i->address + i->size);
 }
@@ -432,7 +432,7 @@ llvm::Value* Capstone2LlvmIrTranslatorMips::getNextInsnAddress(cs_insn* i)
  * branch, at which location execution continues after a procedure call."
  * This method returns this address as an LLVM @c ConstantInt.
  */
-llvm::Value* Capstone2LlvmIrTranslatorMips::getNextNextInsnAddress(cs_insn* i)
+llvm::Value* Capstone2LlvmIrTranslatorMips_impl::getNextNextInsnAddress(cs_insn* i)
 {
 	return llvm::ConstantInt::get(getDefaultType(), i->address + (2 * i->size));
 }
@@ -449,12 +449,12 @@ llvm::Value* Capstone2LlvmIrTranslatorMips::getNextNextInsnAddress(cs_insn* i)
  *
  * Right now, we choose not to generate it. This may change in future.
  */
-llvm::Value* Capstone2LlvmIrTranslatorMips::getUnpredictableValue()
+llvm::Value* Capstone2LlvmIrTranslatorMips_impl::getUnpredictableValue()
 {
 	return nullptr;
 }
 
-uint32_t Capstone2LlvmIrTranslatorMips::singlePrecisionToDoublePrecisionFpRegister(
+uint32_t Capstone2LlvmIrTranslatorMips_impl::singlePrecisionToDoublePrecisionFpRegister(
 		uint32_t r) const
 {
 	// Working with odd double reg (e.g. sdc1 $f21, -0x7ba3($v1)) may happen.
@@ -502,7 +502,7 @@ uint32_t Capstone2LlvmIrTranslatorMips::singlePrecisionToDoublePrecisionFpRegist
 	}
 }
 
-llvm::Value* Capstone2LlvmIrTranslatorMips::loadRegister(
+llvm::Value* Capstone2LlvmIrTranslatorMips_impl::loadRegister(
 		uint32_t r,
 		llvm::IRBuilder<>& irb)
 {
@@ -536,7 +536,7 @@ llvm::Value* Capstone2LlvmIrTranslatorMips::loadRegister(
 	return irb.CreateLoad(llvmReg);
 }
 
-llvm::Value* Capstone2LlvmIrTranslatorMips::loadOp(
+llvm::Value* Capstone2LlvmIrTranslatorMips_impl::loadOp(
 		cs_mips_op& op,
 		llvm::IRBuilder<>& irb,
 		llvm::Type* ty)
@@ -597,7 +597,7 @@ llvm::Value* Capstone2LlvmIrTranslatorMips::loadOp(
 	}
 }
 
-llvm::Value* Capstone2LlvmIrTranslatorMips::loadOpUnary(
+llvm::Value* Capstone2LlvmIrTranslatorMips_impl::loadOpUnary(
 		cs_mips* mi,
 		llvm::IRBuilder<>& irb)
 {
@@ -609,7 +609,7 @@ llvm::Value* Capstone2LlvmIrTranslatorMips::loadOpUnary(
 	return loadOp(mi->operands[0], irb);
 }
 
-std::pair<llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorMips::loadOpBinary(
+std::pair<llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorMips_impl::loadOpBinary(
 		cs_mips* mi,
 		llvm::IRBuilder<>& irb,
 		eOpConv ct)
@@ -655,7 +655,7 @@ std::pair<llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorMips::loadOpBinar
 	return std::make_pair(op0, op1);
 }
 
-llvm::Value* Capstone2LlvmIrTranslatorMips::loadOpBinaryOp0(
+llvm::Value* Capstone2LlvmIrTranslatorMips_impl::loadOpBinaryOp0(
 		cs_mips* mi,
 		llvm::IRBuilder<>& irb,
 		llvm::Type* ty)
@@ -668,7 +668,7 @@ llvm::Value* Capstone2LlvmIrTranslatorMips::loadOpBinaryOp0(
 	return loadOp(mi->operands[0], irb, ty);
 }
 
-llvm::Value* Capstone2LlvmIrTranslatorMips::loadOpBinaryOp1(
+llvm::Value* Capstone2LlvmIrTranslatorMips_impl::loadOpBinaryOp1(
 		cs_mips* mi,
 		llvm::IRBuilder<>& irb,
 		llvm::Type* ty)
@@ -681,7 +681,7 @@ llvm::Value* Capstone2LlvmIrTranslatorMips::loadOpBinaryOp1(
 	return loadOp(mi->operands[1], irb, ty);
 }
 
-std::pair<llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorMips::loadOp1Op2(
+std::pair<llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorMips_impl::loadOp1Op2(
 		cs_mips* mi,
 		llvm::IRBuilder<>& irb,
 		eOpConv ct)
@@ -728,7 +728,7 @@ std::pair<llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorMips::loadOp1Op2(
 	return std::make_pair(op1, op2);
 }
 
-std::tuple<llvm::Value*, llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorMips::loadOpTernary(
+std::tuple<llvm::Value*, llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorMips_impl::loadOpTernary(
 		cs_mips* mi,
 		llvm::IRBuilder<>& irb)
 {
@@ -748,7 +748,7 @@ std::tuple<llvm::Value*, llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorMi
 	return std::make_tuple(op0, op1, op2);
 }
 
-llvm::StoreInst* Capstone2LlvmIrTranslatorMips::storeRegister(
+llvm::StoreInst* Capstone2LlvmIrTranslatorMips_impl::storeRegister(
 		uint32_t r,
 		llvm::Value* val,
 		llvm::IRBuilder<>& irb,
@@ -825,7 +825,7 @@ llvm::StoreInst* Capstone2LlvmIrTranslatorMips::storeRegister(
  * No store is generated if unpredictable value is set to @c nullptr (see
  * @c getUnpredictableValue()).
  */
-llvm::StoreInst* Capstone2LlvmIrTranslatorMips::storeRegisterUnpredictable(
+llvm::StoreInst* Capstone2LlvmIrTranslatorMips_impl::storeRegisterUnpredictable(
 		uint32_t r,
 		llvm::IRBuilder<>& irb)
 {
@@ -838,7 +838,7 @@ llvm::StoreInst* Capstone2LlvmIrTranslatorMips::storeRegisterUnpredictable(
  * When storing to memory, value type is used -- therefore it needs to be
  * converted to the desired type prior to @c storeOp() call.
  */
-llvm::Instruction* Capstone2LlvmIrTranslatorMips::storeOp(
+llvm::Instruction* Capstone2LlvmIrTranslatorMips_impl::storeOp(
 		cs_mips_op& op,
 		llvm::Value* val,
 		llvm::IRBuilder<>& irb,
@@ -888,7 +888,7 @@ llvm::Instruction* Capstone2LlvmIrTranslatorMips::storeOp(
 	}
 }
 
-bool Capstone2LlvmIrTranslatorMips::isFpInstructionVariant(cs_insn* i)
+bool Capstone2LlvmIrTranslatorMips_impl::isFpInstructionVariant(cs_insn* i)
 {
 	auto& mi = i->detail->mips;
 	return mi.op_count > 0
@@ -900,7 +900,7 @@ bool Capstone2LlvmIrTranslatorMips::isFpInstructionVariant(cs_insn* i)
 /**
  * MIPS_INS_ADDI, MIPS_INS_ADDIU, MIPS_INS_ADD, MIPS_INS_ADDU
  */
-void Capstone2LlvmIrTranslatorMips::translateAdd(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateAdd(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadOp1Op2(mi, irb, eOpConv::SECOND_SEXT);
 	auto* add = op1->getType()->isFloatingPointTy()
@@ -912,7 +912,7 @@ void Capstone2LlvmIrTranslatorMips::translateAdd(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_AND, MIPS_INS_ANDI
  */
-void Capstone2LlvmIrTranslatorMips::translateAnd(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateAnd(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadOp1Op2(mi, irb, eOpConv::SECOND_ZEXT);
 	auto* a = irb.CreateAnd(op1, op2);
@@ -922,7 +922,7 @@ void Capstone2LlvmIrTranslatorMips::translateAnd(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_BC1F, MIPS_INS_BC1FL
  */
-void Capstone2LlvmIrTranslatorMips::translateBc1f(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateBc1f(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	if (mi->op_count == 1)
 	{
@@ -946,7 +946,7 @@ void Capstone2LlvmIrTranslatorMips::translateBc1f(cs_insn* i, cs_mips* mi, llvm:
 /**
  * MIPS_INS_BC1T, MIPS_INS_BC1TL
  */
-void Capstone2LlvmIrTranslatorMips::translateBc1t(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateBc1t(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	if (mi->op_count == 1)
 	{
@@ -978,7 +978,7 @@ void Capstone2LlvmIrTranslatorMips::translateBc1t(cs_insn* i, cs_mips* mi, llvm:
  * The same for:
  * MIPS_INS_BLTZAL, MIPS_INS_BLTZALL
  */
-void Capstone2LlvmIrTranslatorMips::translateBcondal(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateBcondal(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op0, op1) = loadOpBinary(mi, irb);
 	auto* zero = llvm::ConstantInt::get(op0->getType(), 0);
@@ -1009,7 +1009,7 @@ void Capstone2LlvmIrTranslatorMips::translateBcondal(cs_insn* i, cs_mips* mi, ll
  * MIPS_INS_CFC1 -- op1 is GPR holding a value (not FPU control reg).
  *                  Complicated decision what to do based on this value.
  */
-void Capstone2LlvmIrTranslatorMips::translateBinaryPseudoAsm(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateBinaryPseudoAsm(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	op1 = loadOpBinaryOp1(mi, irb);
 
@@ -1034,7 +1034,7 @@ void Capstone2LlvmIrTranslatorMips::translateBinaryPseudoAsm(cs_insn* i, cs_mips
 /**
  * MIPS_INS_CTC1
  */
-void Capstone2LlvmIrTranslatorMips::translateCtc1(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateCtc1(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op0, op1) = loadOpBinary(mi, irb);
 
@@ -1050,7 +1050,7 @@ void Capstone2LlvmIrTranslatorMips::translateCtc1(cs_insn* i, cs_mips* mi, llvm:
 /**
  * MIPS_INS_CVT
  */
-void Capstone2LlvmIrTranslatorMips::translateCvt(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateCvt(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::string mnem = i->mnemonic;
 	if (mi->op_count != 2
@@ -1132,7 +1132,7 @@ void Capstone2LlvmIrTranslatorMips::translateCvt(cs_insn* i, cs_mips* mi, llvm::
  * MIPS_INS_BEQ, MIPS_INS_BEQL (likely)
  * MIPS_INS_BNE, MIPS_INS_BNEL (likely)
  */
-void Capstone2LlvmIrTranslatorMips::translateCondBranchTernary(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateCondBranchTernary(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op0, op1, op2) = loadOpTernary(mi, irb);
 	op1 = irb.CreateZExtOrTrunc(op1, op0->getType());
@@ -1163,7 +1163,7 @@ void Capstone2LlvmIrTranslatorMips::translateCondBranchTernary(cs_insn* i, cs_mi
  * MIPS_INS_BEQZ
  * MIPS_INS_BNEZ
  */
-void Capstone2LlvmIrTranslatorMips::translateCondBranchBinary(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateCondBranchBinary(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op0, op1) = loadOpBinary(mi, irb);
 	auto* zero = llvm::ConstantInt::get(op0->getType(), 0);
@@ -1203,7 +1203,7 @@ void Capstone2LlvmIrTranslatorMips::translateCondBranchBinary(cs_insn* i, cs_mip
 /**
  * MIPS_INS_BITREV
  */
-void Capstone2LlvmIrTranslatorMips::translateBitrev(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateBitrev(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	llvm::Function* fnc = getOrCreateAsmFunction(
 			i->id,
@@ -1219,7 +1219,7 @@ void Capstone2LlvmIrTranslatorMips::translateBitrev(cs_insn* i, cs_mips* mi, llv
 /**
  * MIPS_INS_BREAK
  */
-void Capstone2LlvmIrTranslatorMips::translateBreak(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateBreak(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	// TODO: Modeled as empty instruction in the original semantics.
 	// Causes problems in some integration tests
@@ -1275,7 +1275,7 @@ void Capstone2LlvmIrTranslatorMips::translateBreak(cs_insn* i, cs_mips* mi, llvm
 /**
  * MIPS_INS_C
  */
-void Capstone2LlvmIrTranslatorMips::translateC(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateC(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::string mnem = i->mnemonic;
 	std::tie(op0, op1) = loadOpBinary(mi, irb, eOpConv::THROW);
@@ -1359,7 +1359,7 @@ void Capstone2LlvmIrTranslatorMips::translateC(cs_insn* i, cs_mips* mi, llvm::IR
 /**
  * MIPS_INS_CLO
  */
-void Capstone2LlvmIrTranslatorMips::translateClo(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateClo(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	op1 = loadOpBinaryOp1(mi, irb);
 	op1 = irb.CreateXor(op1, llvm::ConstantInt::getSigned(op1->getType(), -1));
@@ -1374,7 +1374,7 @@ void Capstone2LlvmIrTranslatorMips::translateClo(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_CLZ
  */
-void Capstone2LlvmIrTranslatorMips::translateClz(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateClz(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	op1 = loadOpBinaryOp1(mi, irb);
 	auto* f = llvm::Intrinsic::getDeclaration(
@@ -1388,7 +1388,7 @@ void Capstone2LlvmIrTranslatorMips::translateClz(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_DIV
  */
-void Capstone2LlvmIrTranslatorMips::translateDiv(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateDiv(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	if (isFpInstructionVariant(i))
 	{
@@ -1409,7 +1409,7 @@ void Capstone2LlvmIrTranslatorMips::translateDiv(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_DIVU
  */
-void Capstone2LlvmIrTranslatorMips::translateDivu(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateDivu(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op0, op1) = loadOpBinary(mi, irb, eOpConv::THROW);
 	auto* div = irb.CreateUDiv(op0, op1);
@@ -1421,7 +1421,7 @@ void Capstone2LlvmIrTranslatorMips::translateDivu(cs_insn* i, cs_mips* mi, llvm:
 /**
  * MIPS_INS_EXT
  */
-void Capstone2LlvmIrTranslatorMips::translateExt(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateExt(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	if (mi->op_count != 4)
 	{
@@ -1479,7 +1479,7 @@ void Capstone2LlvmIrTranslatorMips::translateExt(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_INS
  */
-void Capstone2LlvmIrTranslatorMips::translateIns(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateIns(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	if (mi->op_count != 4)
 	{
@@ -1503,7 +1503,7 @@ void Capstone2LlvmIrTranslatorMips::translateIns(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_J, MIPS_INS_JR
  */
-void Capstone2LlvmIrTranslatorMips::translateJ(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateJ(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	op0 = loadOpUnary(mi, irb);
 	generateBranchFunctionCall(irb, op0);
@@ -1512,7 +1512,7 @@ void Capstone2LlvmIrTranslatorMips::translateJ(cs_insn* i, cs_mips* mi, llvm::IR
 /**
  * MIPS_INS_JAL, MIPS_INS_JALR
  */
-void Capstone2LlvmIrTranslatorMips::translateJal(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateJal(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	// Silent ignore -- no throw, assert, etc.
 	// TODO: This should be everywhere, but as elegant as possible.
@@ -1538,7 +1538,7 @@ void Capstone2LlvmIrTranslatorMips::translateJal(cs_insn* i, cs_mips* mi, llvm::
  * MIPS_INS_LD, MIPS_INS_LDC3,
  * MIPS_INS_LWC1, MIPS_INS_LDC1
  */
-void Capstone2LlvmIrTranslatorMips::translateLoadMemory(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateLoadMemory(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	llvm::Type* ty = nullptr;
 	eOpConv ct = eOpConv::THROW;
@@ -1567,7 +1567,7 @@ void Capstone2LlvmIrTranslatorMips::translateLoadMemory(cs_insn* i, cs_mips* mi,
  * MIPS_INS_SB, MIPS_INS_SH, MIPS_INS_SW, MIPS_INS_SD, MIPS_INS_SDC3,
  * MIPS_INS_SWC1, MIPS_INS_SDC1
  */
-void Capstone2LlvmIrTranslatorMips::translateStoreMemory(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateStoreMemory(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	assert(mi->op_count == 2);
 
@@ -1608,7 +1608,7 @@ void Capstone2LlvmIrTranslatorMips::translateStoreMemory(cs_insn* i, cs_mips* mi
  * MIPS_INS_LUI
  * This behaves like 32-bit MIPS instruction even on 64-bit MIPS.
  */
-void Capstone2LlvmIrTranslatorMips::translateLui(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateLui(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	assert(mi->op_count == 2);
 	op1 = loadOp(mi->operands[1], irb);
@@ -1620,7 +1620,7 @@ void Capstone2LlvmIrTranslatorMips::translateLui(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_LWL
  */
-void Capstone2LlvmIrTranslatorMips::translateLwl(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateLwl(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	// TODO: Modeled as an empty insn in the old semantics,
 	// but it should not have been.
@@ -1629,7 +1629,7 @@ void Capstone2LlvmIrTranslatorMips::translateLwl(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_LWR
  */
-void Capstone2LlvmIrTranslatorMips::translateLwr(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateLwr(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	// TODO: Modeled as an empty insn in the old semantics,
 	// but it should not have been.
@@ -1638,7 +1638,7 @@ void Capstone2LlvmIrTranslatorMips::translateLwr(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_SWL
  */
-void Capstone2LlvmIrTranslatorMips::translateSwl(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateSwl(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	// TODO: Modeled as an empty insn in the old semantics,
 	// but it should not have been.
@@ -1647,7 +1647,7 @@ void Capstone2LlvmIrTranslatorMips::translateSwl(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_SWR
  */
-void Capstone2LlvmIrTranslatorMips::translateSwr(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateSwr(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	// TODO: Modeled as an empty insn in the old semantics,
 	// but it should not have been.
@@ -1656,7 +1656,7 @@ void Capstone2LlvmIrTranslatorMips::translateSwr(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_MADD, MIPS_INS_MADDU
  */
-void Capstone2LlvmIrTranslatorMips::translateMadd(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateMadd(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	if (isFpInstructionVariant(i))
 	{
@@ -1721,7 +1721,7 @@ void Capstone2LlvmIrTranslatorMips::translateMadd(cs_insn* i, cs_mips* mi, llvm:
 	storeRegister(MIPS_REG_HI, hi, irb);
 }
 
-void Capstone2LlvmIrTranslatorMips::translateMaddf(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateMaddf(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	if (mi->op_count != 4)
 	{
@@ -1740,7 +1740,7 @@ void Capstone2LlvmIrTranslatorMips::translateMaddf(cs_insn* i, cs_mips* mi, llvm
 /**
  * MIPS_INS_NEGU
  */
-void Capstone2LlvmIrTranslatorMips::translateNegu(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateNegu(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	op1 = loadOpBinaryOp1(mi, irb);
 	auto* sub = irb.CreateSub(llvm::ConstantInt::get(op1->getType(), 0), op1);
@@ -1750,7 +1750,7 @@ void Capstone2LlvmIrTranslatorMips::translateNegu(cs_insn* i, cs_mips* mi, llvm:
 /**
  * MIPS_INS_NMADD -- this could be merged with translateMaddf().
  */
-void Capstone2LlvmIrTranslatorMips::translateNmadd(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateNmadd(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	if (mi->op_count != 4)
 	{
@@ -1771,7 +1771,7 @@ void Capstone2LlvmIrTranslatorMips::translateNmadd(cs_insn* i, cs_mips* mi, llvm
 /**
  * MIPS_INS_MAX
  */
-void Capstone2LlvmIrTranslatorMips::translateMax(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateMax(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadOp1Op2(mi, irb, eOpConv::THROW);
 	auto* sge = irb.CreateICmpSGE(op1, op2);
@@ -1782,7 +1782,7 @@ void Capstone2LlvmIrTranslatorMips::translateMax(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_MFC1
  */
-void Capstone2LlvmIrTranslatorMips::translateMfc1(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateMfc1(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	op1 = loadOpBinaryOp1(mi, irb);
 	auto* ty = op1->getType()->isDoubleTy()
@@ -1796,7 +1796,7 @@ void Capstone2LlvmIrTranslatorMips::translateMfc1(cs_insn* i, cs_mips* mi, llvm:
 /**
  * MIPS_INS_MTC1
  */
-void Capstone2LlvmIrTranslatorMips::translateMtc1(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateMtc1(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	op0 = loadOpBinaryOp0(mi, irb);
 	op0 = irb.CreateZExtOrTrunc(op0, irb.getInt32Ty()); // even on 64-bit it takes only 0..31
@@ -1807,7 +1807,7 @@ void Capstone2LlvmIrTranslatorMips::translateMtc1(cs_insn* i, cs_mips* mi, llvm:
 /**
  * MIPS_INS_MFHI
  */
-void Capstone2LlvmIrTranslatorMips::translateMfhi(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateMfhi(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	if (mi->op_count != 1)
 	{
@@ -1823,7 +1823,7 @@ void Capstone2LlvmIrTranslatorMips::translateMfhi(cs_insn* i, cs_mips* mi, llvm:
 /**
  * MIPS_INS_MFLO
  */
-void Capstone2LlvmIrTranslatorMips::translateMflo(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateMflo(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	if (mi->op_count != 1)
 	{
@@ -1837,7 +1837,7 @@ void Capstone2LlvmIrTranslatorMips::translateMflo(cs_insn* i, cs_mips* mi, llvm:
 /**
  * MIPS_INS_MIN
  */
-void Capstone2LlvmIrTranslatorMips::translateMin(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateMin(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadOp1Op2(mi, irb, eOpConv::THROW);
 	auto* sle = irb.CreateICmpSLE(op1, op2);
@@ -1848,7 +1848,7 @@ void Capstone2LlvmIrTranslatorMips::translateMin(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_MOV, MIPS_INS_MOVE
  */
-void Capstone2LlvmIrTranslatorMips::translateMov(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateMov(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	op1 = loadOpBinaryOp1(mi, irb);
 	storeOp(mi->operands[0], op1, irb);
@@ -1857,7 +1857,7 @@ void Capstone2LlvmIrTranslatorMips::translateMov(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_MSUB, MIPS_INS_MSUBU
  */
-void Capstone2LlvmIrTranslatorMips::translateMsub(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateMsub(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	if (isFpInstructionVariant(i))
 	{
@@ -1922,7 +1922,7 @@ void Capstone2LlvmIrTranslatorMips::translateMsub(cs_insn* i, cs_mips* mi, llvm:
 	storeRegister(MIPS_REG_HI, hi, irb);
 }
 
-void Capstone2LlvmIrTranslatorMips::translateMsubf(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateMsubf(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	if (mi->op_count != 4)
 	{
@@ -1941,7 +1941,7 @@ void Capstone2LlvmIrTranslatorMips::translateMsubf(cs_insn* i, cs_mips* mi, llvm
 /**
  * MIPS_INS_NMSUB
  */
-void Capstone2LlvmIrTranslatorMips::translateNmsub(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateNmsub(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	if (mi->op_count != 4)
 	{
@@ -1962,7 +1962,7 @@ void Capstone2LlvmIrTranslatorMips::translateNmsub(cs_insn* i, cs_mips* mi, llvm
 /**
  * MIPS_INS_MTHI
  */
-void Capstone2LlvmIrTranslatorMips::translateMthi(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateMthi(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	op0 = loadOpUnary(mi, irb);
 	storeRegister(MIPS_REG_HI, op0, irb);
@@ -1971,7 +1971,7 @@ void Capstone2LlvmIrTranslatorMips::translateMthi(cs_insn* i, cs_mips* mi, llvm:
 /**
  * MIPS_INS_MTLO
  */
-void Capstone2LlvmIrTranslatorMips::translateMtlo(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateMtlo(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	// Silent ignore -- no throw, assert, etc.
 	// TODO: This should be everywhere, but as elegant as possible.
@@ -1991,7 +1991,7 @@ void Capstone2LlvmIrTranslatorMips::translateMtlo(cs_insn* i, cs_mips* mi, llvm:
 /**
  * MIPS_INS_MOVF
  */
-void Capstone2LlvmIrTranslatorMips::translateMovf(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateMovf(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op0, op1, op2) = loadOpTernary(mi, irb);
 	auto* c = irb.CreateICmpEQ(op2, llvm::ConstantInt::get(op2->getType(), 0));
@@ -2002,7 +2002,7 @@ void Capstone2LlvmIrTranslatorMips::translateMovf(cs_insn* i, cs_mips* mi, llvm:
 /**
  * MIPS_INS_MOVN
  */
-void Capstone2LlvmIrTranslatorMips::translateMovn(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateMovn(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op0, op1, op2) = loadOpTernary(mi, irb);
 	auto* e = irb.CreateICmpNE(op2, llvm::ConstantInt::get(op2->getType(), 0));
@@ -2013,7 +2013,7 @@ void Capstone2LlvmIrTranslatorMips::translateMovn(cs_insn* i, cs_mips* mi, llvm:
 /**
  * MIPS_INS_MOVT
  */
-void Capstone2LlvmIrTranslatorMips::translateMovt(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateMovt(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op0, op1, op2) = loadOpTernary(mi, irb);
 	auto* c = irb.CreateICmpNE(op2, llvm::ConstantInt::get(op2->getType(), 0));
@@ -2024,7 +2024,7 @@ void Capstone2LlvmIrTranslatorMips::translateMovt(cs_insn* i, cs_mips* mi, llvm:
 /**
  * MIPS_INS_MOVZ
  */
-void Capstone2LlvmIrTranslatorMips::translateMovz(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateMovz(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op0, op1, op2) = loadOpTernary(mi, irb);
 	auto* e = irb.CreateICmpEQ(op2, llvm::ConstantInt::get(op2->getType(), 0));
@@ -2035,7 +2035,7 @@ void Capstone2LlvmIrTranslatorMips::translateMovz(cs_insn* i, cs_mips* mi, llvm:
 /**
  * MIPS_INS_MUL
  */
-void Capstone2LlvmIrTranslatorMips::translateMul(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateMul(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadOp1Op2(mi, irb, eOpConv::THROW);
 	if (op1->getType()->isFloatingPointTy())
@@ -2055,7 +2055,7 @@ void Capstone2LlvmIrTranslatorMips::translateMul(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_MULT, MIPS_INS_MULTU
  */
-void Capstone2LlvmIrTranslatorMips::translateMult(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateMult(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op0, op1) = loadOpBinary(mi, irb, eOpConv::THROW);
 	auto* ty = irb.getIntNTy(getArchBitSize() * 2);
@@ -2084,7 +2084,7 @@ void Capstone2LlvmIrTranslatorMips::translateMult(cs_insn* i, cs_mips* mi, llvm:
 /**
  * MIPS_INS_NOP
  */
-void Capstone2LlvmIrTranslatorMips::translateNop(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateNop(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	// Nothing.
 }
@@ -2092,7 +2092,7 @@ void Capstone2LlvmIrTranslatorMips::translateNop(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_NOR, MIPS_INS_NORI
  */
-void Capstone2LlvmIrTranslatorMips::translateNor(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateNor(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadOp1Op2(mi, irb, eOpConv::SECOND_ZEXT);
 	auto* o = irb.CreateOr(op1, op2);
@@ -2103,7 +2103,7 @@ void Capstone2LlvmIrTranslatorMips::translateNor(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_OR, MIPS_INS_ORI
  */
-void Capstone2LlvmIrTranslatorMips::translateOr(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateOr(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadOp1Op2(mi, irb, eOpConv::SECOND_ZEXT);
 	auto* o = irb.CreateOr(op1, op2);
@@ -2113,7 +2113,7 @@ void Capstone2LlvmIrTranslatorMips::translateOr(cs_insn* i, cs_mips* mi, llvm::I
 /**
  * MIPS_INS_ROTR, MIPS_INS_ROTRV
  */
-void Capstone2LlvmIrTranslatorMips::translateRotr(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateRotr(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadOp1Op2(mi, irb, eOpConv::SECOND_ZEXT);
 	op2 = irb.CreateAnd(op2, llvm::ConstantInt::get(op2->getType(), 31)); // low 5 bits
@@ -2127,7 +2127,7 @@ void Capstone2LlvmIrTranslatorMips::translateRotr(cs_insn* i, cs_mips* mi, llvm:
 /**
  * MIPS_INS_SEB
  */
-void Capstone2LlvmIrTranslatorMips::translateSeb(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateSeb(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	op1 = loadOpBinaryOp1(mi, irb);
 	auto* ty = llvm::cast<llvm::IntegerType>(op1->getType());
@@ -2141,7 +2141,7 @@ void Capstone2LlvmIrTranslatorMips::translateSeb(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_SEH
  */
-void Capstone2LlvmIrTranslatorMips::translateSeh(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateSeh(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	op1 = loadOpBinaryOp1(mi, irb);
 	auto* ty = llvm::cast<llvm::IntegerType>(op1->getType());
@@ -2155,7 +2155,7 @@ void Capstone2LlvmIrTranslatorMips::translateSeh(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_SLL, MIPS_INS_SLLV
  */
-void Capstone2LlvmIrTranslatorMips::translateSll(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateSll(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadOp1Op2(mi, irb, eOpConv::SECOND_ZEXT);
 	auto* shl = irb.CreateShl(op1, op2);
@@ -2165,7 +2165,7 @@ void Capstone2LlvmIrTranslatorMips::translateSll(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_SLT, MIPS_INS_SLTI
  */
-void Capstone2LlvmIrTranslatorMips::translateSlt(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateSlt(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadOp1Op2(mi, irb, eOpConv::SECOND_SEXT);
 	auto* slt = irb.CreateICmpSLT(op1, op2);
@@ -2176,7 +2176,7 @@ void Capstone2LlvmIrTranslatorMips::translateSlt(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_SLTU, MIPS_INS_SLTIU
  */
-void Capstone2LlvmIrTranslatorMips::translateSltu(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateSltu(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadOp1Op2(mi, irb, eOpConv::SECOND_SEXT);
 	auto* ult = irb.CreateICmpULT(op1, op2);
@@ -2187,7 +2187,7 @@ void Capstone2LlvmIrTranslatorMips::translateSltu(cs_insn* i, cs_mips* mi, llvm:
 /**
  * MIPS_INS_SRA, MIPS_INS_SRAV
  */
-void Capstone2LlvmIrTranslatorMips::translateSra(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateSra(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadOp1Op2(mi, irb, eOpConv::SECOND_ZEXT);
 	auto* sra = irb.CreateAShr(op1, op2);
@@ -2197,7 +2197,7 @@ void Capstone2LlvmIrTranslatorMips::translateSra(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_SRL, MIPS_INS_SRLV
  */
-void Capstone2LlvmIrTranslatorMips::translateSrl(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateSrl(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadOp1Op2(mi, irb, eOpConv::SECOND_ZEXT);
 	auto* shr = irb.CreateLShr(op1, op2);
@@ -2207,7 +2207,7 @@ void Capstone2LlvmIrTranslatorMips::translateSrl(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_SUB, MIPS_INS_SUBU
  */
-void Capstone2LlvmIrTranslatorMips::translateSub(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateSub(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadOp1Op2(mi, irb, eOpConv::SECOND_SEXT);
 	auto* sub = op1->getType()->isFloatingPointTy()
@@ -2219,7 +2219,7 @@ void Capstone2LlvmIrTranslatorMips::translateSub(cs_insn* i, cs_mips* mi, llvm::
 /**
  * MIPS_INS_SYSCALL
  */
-void Capstone2LlvmIrTranslatorMips::translateSyscall(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateSyscall(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	if (mi->op_count == 0)
 	{
@@ -2249,7 +2249,7 @@ void Capstone2LlvmIrTranslatorMips::translateSyscall(cs_insn* i, cs_mips* mi, ll
 /**
  * MIPS_INS_WSBH
  */
-void Capstone2LlvmIrTranslatorMips::translateWsbh(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateWsbh(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	llvm::Function* fnc = getOrCreateAsmFunction(
 			i->id,
@@ -2265,7 +2265,7 @@ void Capstone2LlvmIrTranslatorMips::translateWsbh(cs_insn* i, cs_mips* mi, llvm:
 /**
  * MIPS_INS_XOR, MIPS_INS_XORI
  */
-void Capstone2LlvmIrTranslatorMips::translateXor(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorMips_impl::translateXor(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadOp1Op2(mi, irb, eOpConv::SECOND_ZEXT);
 	auto* x = irb.CreateXor(op1, op2);

@@ -8,60 +8,20 @@
 #include <iomanip>
 #include <iostream>
 
-#include "retdec/capstone2llvmir/arm/arm.h"
-#include "retdec/capstone2llvmir/capstone2llvmir.h"
-#include "retdec/capstone2llvmir/mips/mips.h"
-#include "retdec/capstone2llvmir/powerpc/powerpc.h"
-#include "retdec/capstone2llvmir/x86/x86.h"
+#include "capstone2llvmir/arm/arm_impl.h"
+#include "capstone2llvmir/mips/mips_impl.h"
+#include "capstone2llvmir/powerpc/powerpc_impl.h"
+#include "capstone2llvmir/x86/x86_impl.h"
+#include "capstone2llvmir/capstone2llvmir_impl.h"
 
 namespace retdec {
 namespace capstone2llvmir {
 
-Capstone2LlvmIrTranslator::Capstone2LlvmIrTranslator(
-		cs_arch a,
-		cs_mode basic,
-		cs_mode extra,
-		llvm::Module* m)
-		:
-		_arch(a),
-		_basicMode(basic),
-		_extraMode(extra),
-		_module(m)
-{
-	// Do not call anything here, especially virtual methods.
-}
-
-Capstone2LlvmIrTranslator::~Capstone2LlvmIrTranslator()
-{
-	closeHandle();
-}
-
-void Capstone2LlvmIrTranslator::initialize()
-{
-	if (!isAllowedBasicMode(_basicMode))
-	{
-		throw Capstone2LlvmIrModeError(
-				_arch,
-				_basicMode,
-				Capstone2LlvmIrModeError::eType::BASIC_MODE);
-	}
-	if (!isAllowedExtraMode(_extraMode))
-	{
-		throw Capstone2LlvmIrModeError(
-				_arch,
-				_extraMode,
-				Capstone2LlvmIrModeError::eType::EXTRA_MODE);
-	}
-
-	openHandle(); // Sets both _basicMode and _extraMode.
-	configureHandle();
-
-	initializeRegNameMap();
-	initializeRegTypeMap();
-	initializeArchSpecific();
-
-	generateEnvironment();
-}
+//
+//==============================================================================
+// Capstone2LlvmIrTranslator
+//==============================================================================
+//
 
 /**
  * Create translator for the specified architecture @p a, module @p m,
@@ -146,7 +106,7 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createArm(
 		llvm::Module* m,
 		cs_mode extra)
 {
-	return std::make_unique<Capstone2LlvmIrTranslatorArm>(m, CS_MODE_ARM, extra);
+	return std::make_unique<Capstone2LlvmIrTranslatorArm_impl>(m, CS_MODE_ARM, extra);
 }
 
 /**
@@ -162,7 +122,7 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createThum
 		llvm::Module* m,
 		cs_mode extra)
 {
-	return std::make_unique<Capstone2LlvmIrTranslatorArm>(m, CS_MODE_THUMB, extra);
+	return std::make_unique<Capstone2LlvmIrTranslatorArm_impl>(m, CS_MODE_THUMB, extra);
 }
 
 /**
@@ -194,7 +154,7 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createMips
 		llvm::Module* m,
 		cs_mode extra)
 {
-	return std::make_unique<Capstone2LlvmIrTranslatorMips>(m, CS_MODE_MIPS32, extra);
+	return std::make_unique<Capstone2LlvmIrTranslatorMips_impl>(m, CS_MODE_MIPS32, extra);
 }
 
 /**
@@ -210,7 +170,7 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createMips
 		llvm::Module* m,
 		cs_mode extra)
 {
-	return std::make_unique<Capstone2LlvmIrTranslatorMips>(m, CS_MODE_MIPS64, extra);
+	return std::make_unique<Capstone2LlvmIrTranslatorMips_impl>(m, CS_MODE_MIPS64, extra);
 }
 
 /**
@@ -226,7 +186,7 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createMips
 		llvm::Module* m,
 		cs_mode extra)
 {
-	return std::make_unique<Capstone2LlvmIrTranslatorMips>(m, CS_MODE_MIPS3, extra);
+	return std::make_unique<Capstone2LlvmIrTranslatorMips_impl>(m, CS_MODE_MIPS3, extra);
 }
 
 /**
@@ -242,7 +202,7 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createMips
 		llvm::Module* m,
 		cs_mode extra)
 {
-	return std::make_unique<Capstone2LlvmIrTranslatorMips>(m, CS_MODE_MIPS32R6, extra);
+	return std::make_unique<Capstone2LlvmIrTranslatorMips_impl>(m, CS_MODE_MIPS32R6, extra);
 }
 
 /**
@@ -257,7 +217,7 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createX86_
 		llvm::Module* m,
 		cs_mode extra)
 {
-	return std::make_unique<Capstone2LlvmIrTranslatorX86>(m, CS_MODE_16, extra);
+	return std::make_unique<Capstone2LlvmIrTranslatorX86_impl>(m, CS_MODE_16, extra);
 }
 
 /**
@@ -272,7 +232,7 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createX86_
 		llvm::Module* m,
 		cs_mode extra)
 {
-	return std::make_unique<Capstone2LlvmIrTranslatorX86>(m, CS_MODE_32, extra);
+	return std::make_unique<Capstone2LlvmIrTranslatorX86_impl>(m, CS_MODE_32, extra);
 }
 
 /**
@@ -289,7 +249,7 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createX86_
 		llvm::Module* m,
 		cs_mode extra)
 {
-	return std::make_unique<Capstone2LlvmIrTranslatorX86>(m, CS_MODE_64, extra);
+	return std::make_unique<Capstone2LlvmIrTranslatorX86_impl>(m, CS_MODE_64, extra);
 }
 
 /**
@@ -305,7 +265,7 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createPpc3
 		llvm::Module* m,
 		cs_mode extra)
 {
-	return std::make_unique<Capstone2LlvmIrTranslatorPowerpc>(m, CS_MODE_32, extra);
+	return std::make_unique<Capstone2LlvmIrTranslatorPowerpc_impl>(m, CS_MODE_32, extra);
 }
 
 /**
@@ -321,7 +281,7 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createPpc6
 		llvm::Module* m,
 		cs_mode extra)
 {
-	return std::make_unique<Capstone2LlvmIrTranslatorPowerpc>(m, CS_MODE_64, extra);
+	return std::make_unique<Capstone2LlvmIrTranslatorPowerpc_impl>(m, CS_MODE_64, extra);
 }
 
 /**
@@ -337,7 +297,7 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createPpcQ
 		llvm::Module* m,
 		cs_mode extra)
 {
-	return std::make_unique<Capstone2LlvmIrTranslatorPowerpc>(m, CS_MODE_QPX, extra);
+	return std::make_unique<Capstone2LlvmIrTranslatorPowerpc_impl>(m, CS_MODE_QPX, extra);
 }
 
 /**
@@ -385,7 +345,64 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createXcor
 	return nullptr;
 }
 
-void Capstone2LlvmIrTranslator::openHandle()
+Capstone2LlvmIrTranslator::~Capstone2LlvmIrTranslator()
+{
+
+}
+
+//
+//==============================================================================
+// Capstone2LlvmIrTranslator_impl
+//==============================================================================
+//
+
+Capstone2LlvmIrTranslator_impl::Capstone2LlvmIrTranslator_impl(
+		cs_arch a,
+		cs_mode basic,
+		cs_mode extra,
+		llvm::Module* m)
+		:
+		_arch(a),
+		_basicMode(basic),
+		_extraMode(extra),
+		_module(m)
+{
+	// Do not call anything here, especially virtual methods.
+}
+
+Capstone2LlvmIrTranslator_impl::~Capstone2LlvmIrTranslator_impl()
+{
+	closeHandle();
+}
+
+void Capstone2LlvmIrTranslator_impl::initialize()
+{
+	if (!isAllowedBasicMode(_basicMode))
+	{
+		throw Capstone2LlvmIrModeError(
+				_arch,
+				_basicMode,
+				Capstone2LlvmIrModeError::eType::BASIC_MODE);
+	}
+	if (!isAllowedExtraMode(_extraMode))
+	{
+		throw Capstone2LlvmIrModeError(
+				_arch,
+				_extraMode,
+				Capstone2LlvmIrModeError::eType::EXTRA_MODE);
+	}
+
+	openHandle(); // Sets both _basicMode and _extraMode.
+	configureHandle();
+
+	initializeRegNameMap();
+	initializeRegTypeMap();
+	initializeArchSpecific();
+
+	generateEnvironment();
+}
+
+void Capstone2LlvmIrTranslator_impl::openHandle()
 {
 	cs_mode finalMode = static_cast<cs_mode>(_basicMode + _extraMode);
 	if (cs_open(_arch, finalMode, &_handle) != CS_ERR_OK)
@@ -394,7 +411,7 @@ void Capstone2LlvmIrTranslator::openHandle()
 	}
 }
 
-void Capstone2LlvmIrTranslator::configureHandle()
+void Capstone2LlvmIrTranslator_impl::configureHandle()
 {
 	if (cs_option(_handle, CS_OPT_DETAIL, CS_OPT_ON) != CS_ERR_OK)
 	{
@@ -402,7 +419,7 @@ void Capstone2LlvmIrTranslator::configureHandle()
 	}
 }
 
-void Capstone2LlvmIrTranslator::closeHandle()
+void Capstone2LlvmIrTranslator_impl::closeHandle()
 {
 	if (_handle != 0)
 	{
@@ -413,7 +430,7 @@ void Capstone2LlvmIrTranslator::closeHandle()
 	}
 }
 
-void Capstone2LlvmIrTranslator::generateEnvironment()
+void Capstone2LlvmIrTranslator_impl::generateEnvironment()
 {
 	generateSpecialAsm2LlvmMapGlobal();
 	generateCallFunction();
@@ -432,7 +449,7 @@ void Capstone2LlvmIrTranslator::generateEnvironment()
  * @c getAsm2LlvmMapGlobalVariable() and do whatever they want with it
  * (e.g. rename).
  */
-void Capstone2LlvmIrTranslator::generateSpecialAsm2LlvmMapGlobal()
+void Capstone2LlvmIrTranslator_impl::generateSpecialAsm2LlvmMapGlobal()
 {
 	llvm::GlobalValue::LinkageTypes lt = llvm::GlobalValue::InternalLinkage;
 	llvm::Constant* initializer = nullptr;
@@ -451,12 +468,12 @@ void Capstone2LlvmIrTranslator::generateSpecialAsm2LlvmMapGlobal()
 			initializer);
 }
 
-bool Capstone2LlvmIrTranslator::isSpecialAsm2LlvmMapGlobal(llvm::Value* v) const
+bool Capstone2LlvmIrTranslator_impl::isSpecialAsm2LlvmMapGlobal(llvm::Value* v) const
 {
 	return _asm2llvmGv == v;
 }
 
-llvm::StoreInst* Capstone2LlvmIrTranslator::generateSpecialAsm2LlvmInstr(
+llvm::StoreInst* Capstone2LlvmIrTranslator_impl::generateSpecialAsm2LlvmInstr(
 		llvm::IRBuilder<>& irb,
 		cs_insn* i)
 {
@@ -472,7 +489,7 @@ llvm::StoreInst* Capstone2LlvmIrTranslator::generateSpecialAsm2LlvmInstr(
 	return s;
 }
 
-llvm::StoreInst* Capstone2LlvmIrTranslator::isSpecialAsm2LlvmInstr(llvm::Value* v) const
+llvm::StoreInst* Capstone2LlvmIrTranslator_impl::isSpecialAsm2LlvmInstr(llvm::Value* v) const
 {
 	if (auto* s = llvm::dyn_cast<llvm::StoreInst>(v))
 	{
@@ -484,7 +501,7 @@ llvm::StoreInst* Capstone2LlvmIrTranslator::isSpecialAsm2LlvmInstr(llvm::Value* 
 	return nullptr;
 }
 
-void Capstone2LlvmIrTranslator::generateCallFunction()
+void Capstone2LlvmIrTranslator_impl::generateCallFunction()
 {
 	auto* ft = llvm::FunctionType::get(
 			llvm::Type::getVoidTy(_module->getContext()),
@@ -497,7 +514,7 @@ void Capstone2LlvmIrTranslator::generateCallFunction()
 			_module);
 }
 
-llvm::CallInst* Capstone2LlvmIrTranslator::generateCallFunctionCall(
+llvm::CallInst* Capstone2LlvmIrTranslator_impl::generateCallFunctionCall(
 		llvm::IRBuilder<>& irb,
 		llvm::Value* t)
 {
@@ -507,17 +524,17 @@ llvm::CallInst* Capstone2LlvmIrTranslator::generateCallFunctionCall(
 	return _branchGenerated;
 }
 
-bool Capstone2LlvmIrTranslator::isCallFunction(llvm::Function* f) const
+bool Capstone2LlvmIrTranslator_impl::isCallFunction(llvm::Function* f) const
 {
 	return f == _callFunction;
 }
 
-bool Capstone2LlvmIrTranslator::isCallFunctionCall(llvm::CallInst* c) const
+bool Capstone2LlvmIrTranslator_impl::isCallFunctionCall(llvm::CallInst* c) const
 {
 	return c ? isCallFunction(c->getCalledFunction()) : false;
 }
 
-void Capstone2LlvmIrTranslator::generateReturnFunction()
+void Capstone2LlvmIrTranslator_impl::generateReturnFunction()
 {
 	auto* ft = llvm::FunctionType::get(
 			llvm::Type::getVoidTy(_module->getContext()),
@@ -530,7 +547,7 @@ void Capstone2LlvmIrTranslator::generateReturnFunction()
 			_module);
 }
 
-llvm::CallInst* Capstone2LlvmIrTranslator::generateReturnFunctionCall(
+llvm::CallInst* Capstone2LlvmIrTranslator_impl::generateReturnFunctionCall(
 		llvm::IRBuilder<>& irb,
 		llvm::Value* t)
 {
@@ -540,17 +557,17 @@ llvm::CallInst* Capstone2LlvmIrTranslator::generateReturnFunctionCall(
 	return _branchGenerated;
 }
 
-bool Capstone2LlvmIrTranslator::isReturnFunction(llvm::Function* f) const
+bool Capstone2LlvmIrTranslator_impl::isReturnFunction(llvm::Function* f) const
 {
 	return f == _returnFunction;
 }
 
-bool Capstone2LlvmIrTranslator::isReturnFunctionCall(llvm::CallInst* c) const
+bool Capstone2LlvmIrTranslator_impl::isReturnFunctionCall(llvm::CallInst* c) const
 {
 	return c ? isReturnFunction(c->getCalledFunction()) : false;
 }
 
-void Capstone2LlvmIrTranslator::generateBranchFunction()
+void Capstone2LlvmIrTranslator_impl::generateBranchFunction()
 {
 	auto* ft = llvm::FunctionType::get(
 			llvm::Type::getVoidTy(_module->getContext()),
@@ -563,7 +580,7 @@ void Capstone2LlvmIrTranslator::generateBranchFunction()
 			_module);
 }
 
-llvm::CallInst* Capstone2LlvmIrTranslator::generateBranchFunctionCall(
+llvm::CallInst* Capstone2LlvmIrTranslator_impl::generateBranchFunctionCall(
 		llvm::IRBuilder<>& irb,
 		llvm::Value* t)
 {
@@ -573,17 +590,17 @@ llvm::CallInst* Capstone2LlvmIrTranslator::generateBranchFunctionCall(
 	return _branchGenerated;
 }
 
-bool Capstone2LlvmIrTranslator::isBranchFunction(llvm::Function* f) const
+bool Capstone2LlvmIrTranslator_impl::isBranchFunction(llvm::Function* f) const
 {
 	return _branchFunction == f;
 }
 
-bool Capstone2LlvmIrTranslator::isBranchFunctionCall(llvm::CallInst* c) const
+bool Capstone2LlvmIrTranslator_impl::isBranchFunctionCall(llvm::CallInst* c) const
 {
 	return c ? isBranchFunction(c->getCalledFunction()) : false;
 }
 
-void Capstone2LlvmIrTranslator::generateCondBranchFunction()
+void Capstone2LlvmIrTranslator_impl::generateCondBranchFunction()
 {
 	std::vector<llvm::Type*> params = {
 			llvm::Type::getInt1Ty(_module->getContext()),
@@ -599,7 +616,7 @@ void Capstone2LlvmIrTranslator::generateCondBranchFunction()
 			_module);
 }
 
-llvm::CallInst* Capstone2LlvmIrTranslator::generateCondBranchFunctionCall(
+llvm::CallInst* Capstone2LlvmIrTranslator_impl::generateCondBranchFunctionCall(
 		llvm::IRBuilder<>& irb,
 		llvm::Value* cond,
 		llvm::Value* t)
@@ -610,12 +627,12 @@ llvm::CallInst* Capstone2LlvmIrTranslator::generateCondBranchFunctionCall(
 	return _branchGenerated;
 }
 
-bool Capstone2LlvmIrTranslator::isCondBranchFunction(llvm::Function* f) const
+bool Capstone2LlvmIrTranslator_impl::isCondBranchFunction(llvm::Function* f) const
 {
 	return _condBranchFunction == f;
 }
 
-bool Capstone2LlvmIrTranslator::isCondBranchFunctionCall(llvm::CallInst* c) const
+bool Capstone2LlvmIrTranslator_impl::isCondBranchFunctionCall(llvm::CallInst* c) const
 {
 	return c ? isCondBranchFunction(c->getCalledFunction()) : false;
 }
@@ -623,7 +640,7 @@ bool Capstone2LlvmIrTranslator::isCondBranchFunctionCall(llvm::CallInst* c) cons
 /**
  * @return Handle to the underlying Capstone engine.
  */
-const csh& Capstone2LlvmIrTranslator::getCapstoneEngine() const
+const csh& Capstone2LlvmIrTranslator_impl::getCapstoneEngine() const
 {
 	return _handle;
 }
@@ -631,7 +648,7 @@ const csh& Capstone2LlvmIrTranslator::getCapstoneEngine() const
 /**
  * @return Capstone architecture this translator was initialized with.
  */
-cs_arch Capstone2LlvmIrTranslator::getArchitecture() const
+cs_arch Capstone2LlvmIrTranslator_impl::getArchitecture() const
 {
 	return _arch;
 }
@@ -639,7 +656,7 @@ cs_arch Capstone2LlvmIrTranslator::getArchitecture() const
 /**
  * @return Capstone basic mode this translator was initialized with.
  */
-cs_mode Capstone2LlvmIrTranslator::getBasicMode() const
+cs_mode Capstone2LlvmIrTranslator_impl::getBasicMode() const
 {
 	return _basicMode;
 }
@@ -647,57 +664,57 @@ cs_mode Capstone2LlvmIrTranslator::getBasicMode() const
 /**
  * @return Capstone extra mode this translator was initialized with.
  */
-cs_mode Capstone2LlvmIrTranslator::getExtraMode() const
+cs_mode Capstone2LlvmIrTranslator_impl::getExtraMode() const
 {
 	return _extraMode;
 }
 
-bool Capstone2LlvmIrTranslator::hasDelaySlot(uint32_t id) const
+bool Capstone2LlvmIrTranslator_impl::hasDelaySlot(uint32_t id) const
 {
 	return false;
 }
 
-bool Capstone2LlvmIrTranslator::hasDelaySlotTypical(uint32_t id) const
+bool Capstone2LlvmIrTranslator_impl::hasDelaySlotTypical(uint32_t id) const
 {
 	return false;
 }
 
-bool Capstone2LlvmIrTranslator::hasDelaySlotLikely(uint32_t id) const
+bool Capstone2LlvmIrTranslator_impl::hasDelaySlotLikely(uint32_t id) const
 {
 	return false;
 }
 
-std::size_t Capstone2LlvmIrTranslator::getDelaySlot(uint32_t id) const
+std::size_t Capstone2LlvmIrTranslator_impl::getDelaySlot(uint32_t id) const
 {
 	return 0;
 }
 
-llvm::Module* Capstone2LlvmIrTranslator::getModule() const
+llvm::Module* Capstone2LlvmIrTranslator_impl::getModule() const
 {
 	return _module;
 }
 
-llvm::GlobalVariable* Capstone2LlvmIrTranslator::getAsm2LlvmMapGlobalVariable() const
+llvm::GlobalVariable* Capstone2LlvmIrTranslator_impl::getAsm2LlvmMapGlobalVariable() const
 {
 	return _asm2llvmGv;
 }
 
-llvm::Function* Capstone2LlvmIrTranslator::getCallFunction() const
+llvm::Function* Capstone2LlvmIrTranslator_impl::getCallFunction() const
 {
 	return _callFunction;
 }
 
-llvm::Function* Capstone2LlvmIrTranslator::getReturnFunction() const
+llvm::Function* Capstone2LlvmIrTranslator_impl::getReturnFunction() const
 {
 	return _returnFunction;
 }
 
-llvm::Function* Capstone2LlvmIrTranslator::getBranchFunction() const
+llvm::Function* Capstone2LlvmIrTranslator_impl::getBranchFunction() const
 {
 	return _branchFunction;
 }
 
-llvm::Function* Capstone2LlvmIrTranslator::getCondBranchFunction() const
+llvm::Function* Capstone2LlvmIrTranslator_impl::getCondBranchFunction() const
 {
 	return _condBranchFunction;
 }
@@ -706,7 +723,7 @@ llvm::Function* Capstone2LlvmIrTranslator::getCondBranchFunction() const
  * @return Asm function associated with @p name, or @c nullptr if there is
  *         no such function.
  */
-llvm::Function* Capstone2LlvmIrTranslator::getAsmFunction(
+llvm::Function* Capstone2LlvmIrTranslator_impl::getAsmFunction(
 		const std::string& name) const
 {
 	auto fIt = _asmFunctions.find(name);
@@ -719,7 +736,7 @@ llvm::Function* Capstone2LlvmIrTranslator::getAsmFunction(
  * functions and return it.
  * @return Functions associated with @p insnId.
  */
-llvm::Function* Capstone2LlvmIrTranslator::getOrCreateAsmFunction(
+llvm::Function* Capstone2LlvmIrTranslator_impl::getOrCreateAsmFunction(
 		std::size_t insnId,
 		const std::string& name,
 		llvm::FunctionType* type)
@@ -742,7 +759,7 @@ llvm::Function* Capstone2LlvmIrTranslator::getOrCreateAsmFunction(
  * The same as @c getOrCreateAsmFunction(std::size_t,std::string&, llvm::FunctionType*),
  * but function is created with zero parameters and @p retType return type.
  */
-llvm::Function* Capstone2LlvmIrTranslator::getOrCreateAsmFunction(
+llvm::Function* Capstone2LlvmIrTranslator_impl::getOrCreateAsmFunction(
 		std::size_t insnId,
 		const std::string& name,
 		llvm::Type* retType)
@@ -760,7 +777,7 @@ llvm::Function* Capstone2LlvmIrTranslator::getOrCreateAsmFunction(
  * TODO: This is not ideal, when used with only one argument (e.g. {i32}),
  * the llvm::Type* retType variant is used instead of this method.
  */
-llvm::Function* Capstone2LlvmIrTranslator::getOrCreateAsmFunction(
+llvm::Function* Capstone2LlvmIrTranslator_impl::getOrCreateAsmFunction(
 		std::size_t insnId,
 		const std::string& name,
 		llvm::ArrayRef<llvm::Type*> params)
@@ -778,7 +795,7 @@ llvm::Function* Capstone2LlvmIrTranslator::getOrCreateAsmFunction(
  * The same as @c getOrCreateAsmFunction(std::size_t,std::string&, llvm::FunctionType*),
  * but function type is created by this variant.
  */
-llvm::Function* Capstone2LlvmIrTranslator::getOrCreateAsmFunction(
+llvm::Function* Capstone2LlvmIrTranslator_impl::getOrCreateAsmFunction(
 		std::size_t insnId,
 		const std::string& name,
 		llvm::Type* retType,
@@ -790,13 +807,13 @@ llvm::Function* Capstone2LlvmIrTranslator::getOrCreateAsmFunction(
 			llvm::FunctionType::get(retType, params, false));
 }
 
-llvm::GlobalVariable* Capstone2LlvmIrTranslator::isRegister(llvm::Value* v) const
+llvm::GlobalVariable* Capstone2LlvmIrTranslator_impl::isRegister(llvm::Value* v) const
 {
 	auto it = _allLlvmRegs.find(llvm::dyn_cast_or_null<llvm::GlobalVariable>(v));
 	return it != _allLlvmRegs.end() ? it->first : nullptr;
 }
 
-uint32_t Capstone2LlvmIrTranslator::getCapstoneRegister(llvm::GlobalVariable* gv) const
+uint32_t Capstone2LlvmIrTranslator_impl::getCapstoneRegister(llvm::GlobalVariable* gv) const
 {
 	auto it = _allLlvmRegs.find(gv);
 	return it != _allLlvmRegs.end() ? it->second : 0;
@@ -805,7 +822,7 @@ uint32_t Capstone2LlvmIrTranslator::getCapstoneRegister(llvm::GlobalVariable* gv
 /**
  *
  */
-Capstone2LlvmIrTranslator::TranslationResult Capstone2LlvmIrTranslator::translate(
+Capstone2LlvmIrTranslator_impl::TranslationResult Capstone2LlvmIrTranslator_impl::translate(
 		const std::vector<uint8_t>& bytes,
 		retdec::utils::Address a,
 		llvm::IRBuilder<>& irb,
@@ -898,7 +915,7 @@ Capstone2LlvmIrTranslator::TranslationResult Capstone2LlvmIrTranslator::translat
 	return res;
 }
 
-llvm::GlobalVariable* Capstone2LlvmIrTranslator::createRegister(
+llvm::GlobalVariable* Capstone2LlvmIrTranslator_impl::createRegister(
 		uint32_t r,
 		llvm::GlobalValue::LinkageTypes lt,
 		llvm::Constant* initializer)
@@ -939,7 +956,7 @@ llvm::GlobalVariable* Capstone2LlvmIrTranslator::createRegister(
 	return gv;
 }
 
-std::string Capstone2LlvmIrTranslator::getRegisterName(uint32_t r) const
+std::string Capstone2LlvmIrTranslator_impl::getRegisterName(uint32_t r) const
 {
 	auto fIt = _reg2name.find(r);
 	if (fIt == _reg2name.end())
@@ -960,7 +977,7 @@ std::string Capstone2LlvmIrTranslator::getRegisterName(uint32_t r) const
 	}
 }
 
-uint32_t Capstone2LlvmIrTranslator::getRegisterBitSize(uint32_t r) const
+uint32_t Capstone2LlvmIrTranslator_impl::getRegisterBitSize(uint32_t r) const
 {
 	auto* rt = getRegisterType(r);
 	if (auto* it = llvm::dyn_cast<llvm::IntegerType>(rt))
@@ -994,12 +1011,12 @@ uint32_t Capstone2LlvmIrTranslator::getRegisterBitSize(uint32_t r) const
 	}
 }
 
-uint32_t Capstone2LlvmIrTranslator::getRegisterByteSize(uint32_t r) const
+uint32_t Capstone2LlvmIrTranslator_impl::getRegisterByteSize(uint32_t r) const
 {
 	return getRegisterBitSize(r) / 8;
 }
 
-llvm::Type* Capstone2LlvmIrTranslator::getRegisterType(uint32_t r) const
+llvm::Type* Capstone2LlvmIrTranslator_impl::getRegisterType(uint32_t r) const
 {
 	auto fIt = _reg2type.find(r);
 	if (fIt == _reg2type.end())
@@ -1017,7 +1034,7 @@ llvm::Type* Capstone2LlvmIrTranslator::getRegisterType(uint32_t r) const
  * or global cache initialized at register generation.
  * @return LLVM global for the specified register, or @c nullptr if not found.
  */
-llvm::GlobalVariable* Capstone2LlvmIrTranslator::getRegister(uint32_t r)
+llvm::GlobalVariable* Capstone2LlvmIrTranslator_impl::getRegister(uint32_t r)
 {
 	auto rn = getRegisterName(r);
 	return _module->getNamedGlobal(rn);
@@ -1038,7 +1055,7 @@ llvm::GlobalVariable* Capstone2LlvmIrTranslator::getRegister(uint32_t r)
  * @return IR builder whose insert point is set to if-then body BB's
  *         terminator instruction. Use this builder to fill the body.
  */
-llvm::IRBuilder<> Capstone2LlvmIrTranslator::generateIfThen(
+llvm::IRBuilder<> Capstone2LlvmIrTranslator_impl::generateIfThen(
 		llvm::Value* cond,
 		llvm::IRBuilder<>& irb)
 {
@@ -1054,14 +1071,14 @@ llvm::IRBuilder<> Capstone2LlvmIrTranslator::generateIfThen(
 	// after
  * @endcode
  */
-llvm::IRBuilder<> Capstone2LlvmIrTranslator::generateIfNotThen(
+llvm::IRBuilder<> Capstone2LlvmIrTranslator_impl::generateIfNotThen(
 		llvm::Value* cond,
 		llvm::IRBuilder<>& irb)
 {
 	return _generateIfThen(cond, irb, true);
 }
 
-llvm::IRBuilder<> Capstone2LlvmIrTranslator::_generateIfThen(
+llvm::IRBuilder<> Capstone2LlvmIrTranslator_impl::_generateIfThen(
 		llvm::Value* cond,
 		llvm::IRBuilder<>& irb,
 		bool reverse)
@@ -1138,7 +1155,7 @@ llvm::IRBuilder<> Capstone2LlvmIrTranslator::_generateIfThen(
  *         bodyIf (first) and bodyElse (second) terminator instructions.
  *         Use these builders to fill the bodies.
  */
-std::pair<llvm::IRBuilder<>, llvm::IRBuilder<>> Capstone2LlvmIrTranslator::generateIfThenElse(
+std::pair<llvm::IRBuilder<>, llvm::IRBuilder<>> Capstone2LlvmIrTranslator_impl::generateIfThenElse(
 		llvm::Value* cond,
 		llvm::IRBuilder<>& irb)
 {
@@ -1184,7 +1201,7 @@ std::pair<llvm::IRBuilder<>, llvm::IRBuilder<>> Capstone2LlvmIrTranslator::gener
  *         while body BB's terminator instructions.
  *         Use these builders to fill while's condition and body.
  */
-std::pair<llvm::IRBuilder<>, llvm::IRBuilder<>> Capstone2LlvmIrTranslator::generateWhile(
+std::pair<llvm::IRBuilder<>, llvm::IRBuilder<>> Capstone2LlvmIrTranslator_impl::generateWhile(
 		llvm::BranchInst*& branch,
 		llvm::IRBuilder<>& irb)
 {
@@ -1213,12 +1230,12 @@ std::pair<llvm::IRBuilder<>, llvm::IRBuilder<>> Capstone2LlvmIrTranslator::gener
 /**
  * TODO: Probably move to abstract class.
  */
-llvm::Value* Capstone2LlvmIrTranslator::genValueNegate(llvm::IRBuilder<>& irb, llvm::Value* val)
+llvm::Value* Capstone2LlvmIrTranslator_impl::genValueNegate(llvm::IRBuilder<>& irb, llvm::Value* val)
 {
 	return irb.CreateXor(val, llvm::ConstantInt::getSigned(val->getType(), -1));
 }
 
-llvm::Type* Capstone2LlvmIrTranslator::getIntegerTypeFromByteSize(unsigned sz)
+llvm::Type* Capstone2LlvmIrTranslator_impl::getIntegerTypeFromByteSize(unsigned sz)
 {
 	auto& ctx = _module->getContext();
 	switch (sz)
@@ -1232,7 +1249,7 @@ llvm::Type* Capstone2LlvmIrTranslator::getIntegerTypeFromByteSize(unsigned sz)
 	}
 }
 
-llvm::Type* Capstone2LlvmIrTranslator::getFloatTypeFromByteSize(unsigned sz)
+llvm::Type* Capstone2LlvmIrTranslator_impl::getFloatTypeFromByteSize(unsigned sz)
 {
 	auto& ctx = _module->getContext();
 	switch (sz)

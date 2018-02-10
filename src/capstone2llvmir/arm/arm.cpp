@@ -7,35 +7,35 @@
 #include <iomanip>
 #include <iostream>
 
-#include "retdec/capstone2llvmir/arm/arm.h"
+#include "capstone2llvmir/arm/arm_impl.h"
 
 namespace retdec {
 namespace capstone2llvmir {
 
-Capstone2LlvmIrTranslatorArm::Capstone2LlvmIrTranslatorArm(
+Capstone2LlvmIrTranslatorArm_impl::Capstone2LlvmIrTranslatorArm_impl(
 		llvm::Module* m,
 		cs_mode basic,
 		cs_mode extra)
 		:
-		Capstone2LlvmIrTranslator(CS_ARCH_ARM, basic, extra, m)
+		Capstone2LlvmIrTranslator_impl(CS_ARCH_ARM, basic, extra, m)
 {
 	// This needs to be called from concrete's class ctor, not abstract's
 	// class ctor, so that virtual table is properly initialized.
 	initialize();
 }
 
-Capstone2LlvmIrTranslatorArm::~Capstone2LlvmIrTranslatorArm()
+Capstone2LlvmIrTranslatorArm_impl::~Capstone2LlvmIrTranslatorArm_impl()
 {
 	// Nothing specific to ARM.
 }
 
-bool Capstone2LlvmIrTranslatorArm::isAllowedBasicMode(cs_mode m)
+bool Capstone2LlvmIrTranslatorArm_impl::isAllowedBasicMode(cs_mode m)
 {
 	return m == CS_MODE_ARM
 			|| m == CS_MODE_THUMB;
 }
 
-bool Capstone2LlvmIrTranslatorArm::isAllowedExtraMode(cs_mode m)
+bool Capstone2LlvmIrTranslatorArm_impl::isAllowedExtraMode(cs_mode m)
 {
 	return m == CS_MODE_LITTLE_ENDIAN
 			|| m == CS_MODE_BIG_ENDIAN;
@@ -44,7 +44,7 @@ bool Capstone2LlvmIrTranslatorArm::isAllowedExtraMode(cs_mode m)
 /**
  * TODO: Can this be moved to abstract class?
  */
-void Capstone2LlvmIrTranslatorArm::modifyBasicMode(cs_mode m)
+void Capstone2LlvmIrTranslatorArm_impl::modifyBasicMode(cs_mode m)
 {
 	if (!isAllowedBasicMode(m))
 	{
@@ -66,7 +66,7 @@ void Capstone2LlvmIrTranslatorArm::modifyBasicMode(cs_mode m)
  * TODO: This could be the same for multiple architectures, move to abstract
  * class?
  */
-void Capstone2LlvmIrTranslatorArm::modifyExtraMode(cs_mode m)
+void Capstone2LlvmIrTranslatorArm_impl::modifyExtraMode(cs_mode m)
 {
 	if (!isAllowedExtraMode(m))
 	{
@@ -84,7 +84,7 @@ void Capstone2LlvmIrTranslatorArm::modifyExtraMode(cs_mode m)
 	_extraMode = m;
 }
 
-uint32_t Capstone2LlvmIrTranslatorArm::getArchByteSize()
+uint32_t Capstone2LlvmIrTranslatorArm_impl::getArchByteSize()
 {
 	return 4;
 }
@@ -93,22 +93,22 @@ uint32_t Capstone2LlvmIrTranslatorArm::getArchByteSize()
  * TODO: This could be the same for multiple architectures, move to abstract
  * class?
  */
-uint32_t Capstone2LlvmIrTranslatorArm::getArchBitSize()
+uint32_t Capstone2LlvmIrTranslatorArm_impl::getArchBitSize()
 {
 	return getArchByteSize() * 8;
 }
 
-void Capstone2LlvmIrTranslatorArm::generateEnvironmentArchSpecific()
+void Capstone2LlvmIrTranslatorArm_impl::generateEnvironmentArchSpecific()
 {
 	// Nothing.
 }
 
-void Capstone2LlvmIrTranslatorArm::generateDataLayout()
+void Capstone2LlvmIrTranslatorArm_impl::generateDataLayout()
 {
 	_module->setDataLayout("e-p:32:32:32-f80:32:32");
 }
 
-void Capstone2LlvmIrTranslatorArm::generateRegisters()
+void Capstone2LlvmIrTranslatorArm_impl::generateRegisters()
 {
 	// General purpose registers.
 	//
@@ -140,7 +140,7 @@ void Capstone2LlvmIrTranslatorArm::generateRegisters()
 	createRegister(ARM_REG_CPSR_V, _regLt);
 }
 
-llvm::IntegerType* Capstone2LlvmIrTranslatorArm::getDefaultType()
+llvm::IntegerType* Capstone2LlvmIrTranslatorArm_impl::getDefaultType()
 {
 	auto& ctx = _module->getContext();
 	return llvm::Type::getInt32Ty(ctx);
@@ -168,7 +168,7 @@ llvm::IntegerType* Capstone2LlvmIrTranslatorArm::getDefaultType()
  * =>
  * PC = current + 4 = current + 2*2 = current + 2*insn_size
  */
-llvm::Value* Capstone2LlvmIrTranslatorArm::getCurrentPc(cs_insn* i)
+llvm::Value* Capstone2LlvmIrTranslatorArm_impl::getCurrentPc(cs_insn* i)
 {
 //	return llvm::ConstantInt::get(getDefaultType(), i->address + (2*i->size));
 	return llvm::ConstantInt::get(
@@ -179,12 +179,12 @@ llvm::Value* Capstone2LlvmIrTranslatorArm::getCurrentPc(cs_insn* i)
 /**
  * TODO: Move to abstract parent class.
  */
-llvm::Value* Capstone2LlvmIrTranslatorArm::getNextInsnAddress(cs_insn* i)
+llvm::Value* Capstone2LlvmIrTranslatorArm_impl::getNextInsnAddress(cs_insn* i)
 {
 	return llvm::ConstantInt::get(getDefaultType(), i->address + i->size);
 }
 
-llvm::Value* Capstone2LlvmIrTranslatorArm::loadRegister(uint32_t r, llvm::IRBuilder<>& irb)
+llvm::Value* Capstone2LlvmIrTranslatorArm_impl::loadRegister(uint32_t r, llvm::IRBuilder<>& irb)
 {
 	if (r == ARM_REG_INVALID)
 	{
@@ -204,7 +204,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm::loadRegister(uint32_t r, llvm::IRBuil
 	return irb.CreateLoad(llvmReg);
 }
 
-llvm::Value* Capstone2LlvmIrTranslatorArm::generateOperandShift(
+llvm::Value* Capstone2LlvmIrTranslatorArm_impl::generateOperandShift(
 		llvm::IRBuilder<>& irb,
 		cs_arm_op& op,
 		llvm::Value* val)
@@ -273,7 +273,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm::generateOperandShift(
 	}
 }
 
-llvm::Value* Capstone2LlvmIrTranslatorArm::generateShiftAsr(
+llvm::Value* Capstone2LlvmIrTranslatorArm_impl::generateShiftAsr(
 		llvm::IRBuilder<>& irb,
 		llvm::Value* val,
 		llvm::Value* n)
@@ -294,7 +294,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm::generateShiftAsr(
 	return irb.CreateAShr(val, n);
 }
 
-llvm::Value* Capstone2LlvmIrTranslatorArm::generateShiftLsl(
+llvm::Value* Capstone2LlvmIrTranslatorArm_impl::generateShiftLsl(
 		llvm::IRBuilder<>& irb,
 		llvm::Value* val,
 		llvm::Value* n)
@@ -309,7 +309,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm::generateShiftLsl(
 	return irb.CreateShl(val, n);
 }
 
-llvm::Value* Capstone2LlvmIrTranslatorArm::generateShiftLsr(
+llvm::Value* Capstone2LlvmIrTranslatorArm_impl::generateShiftLsr(
 		llvm::IRBuilder<>& irb,
 		llvm::Value* val,
 		llvm::Value* n)
@@ -326,7 +326,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm::generateShiftLsr(
 	return irb.CreateLShr(val, n);
 }
 
-llvm::Value* Capstone2LlvmIrTranslatorArm::generateShiftRor(
+llvm::Value* Capstone2LlvmIrTranslatorArm_impl::generateShiftRor(
 		llvm::IRBuilder<>& irb,
 		llvm::Value* val,
 		llvm::Value* n)
@@ -347,7 +347,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm::generateShiftRor(
 	return orr;
 }
 
-llvm::Value* Capstone2LlvmIrTranslatorArm::generateShiftRrx(
+llvm::Value* Capstone2LlvmIrTranslatorArm_impl::generateShiftRrx(
 		llvm::IRBuilder<>& irb,
 		llvm::Value* val,
 		llvm::Value* n)
@@ -380,7 +380,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm::generateShiftRrx(
 	return or2Trunc;
 }
 
-llvm::Value* Capstone2LlvmIrTranslatorArm::loadOp(
+llvm::Value* Capstone2LlvmIrTranslatorArm_impl::loadOp(
 		cs_arm_op& op,
 		llvm::IRBuilder<>& irb,
 		llvm::Type* ty)
@@ -494,7 +494,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm::loadOp(
 	}
 }
 
-llvm::Value* Capstone2LlvmIrTranslatorArm::loadOpUnary(
+llvm::Value* Capstone2LlvmIrTranslatorArm_impl::loadOpUnary(
 		cs_arm* ai,
 		llvm::IRBuilder<>& irb,
 		llvm::Type* ty)
@@ -507,7 +507,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm::loadOpUnary(
 	return loadOp(ai->operands[0], irb, ty);
 }
 
-std::pair<llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorArm::loadOpBinary(
+std::pair<llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorArm_impl::loadOpBinary(
 		cs_arm* ai,
 		llvm::IRBuilder<>& irb,
 		eOpConv ct)
@@ -553,7 +553,7 @@ std::pair<llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorArm::loadOpBinary
 	return std::make_pair(op0, op1);
 }
 
-llvm::Value* Capstone2LlvmIrTranslatorArm::loadOpBinaryOp0(
+llvm::Value* Capstone2LlvmIrTranslatorArm_impl::loadOpBinaryOp0(
 		cs_arm* ai,
 		llvm::IRBuilder<>& irb,
 		llvm::Type* ty)
@@ -566,7 +566,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm::loadOpBinaryOp0(
 	return loadOp(ai->operands[0], irb, ty);
 }
 
-llvm::Value* Capstone2LlvmIrTranslatorArm::loadOpBinaryOp1(
+llvm::Value* Capstone2LlvmIrTranslatorArm_impl::loadOpBinaryOp1(
 		cs_arm* ai,
 		llvm::IRBuilder<>& irb,
 		llvm::Type* ty)
@@ -579,7 +579,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm::loadOpBinaryOp1(
 	return loadOp(ai->operands[1], irb, ty);
 }
 
-std::tuple<llvm::Value*, llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorArm::loadOpTernary(
+std::tuple<llvm::Value*, llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorArm_impl::loadOpTernary(
 		cs_arm* ai,
 		llvm::IRBuilder<>& irb)
 {
@@ -599,7 +599,7 @@ std::tuple<llvm::Value*, llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorAr
 	return std::make_tuple(op0, op1, op2);
 }
 
-std::tuple<llvm::Value*, llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorArm::loadOpQuaternaryOp1Op2Op3(
+std::tuple<llvm::Value*, llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorArm_impl::loadOpQuaternaryOp1Op2Op3(
 		cs_arm* ai,
 		llvm::IRBuilder<>& irb)
 {
@@ -619,7 +619,7 @@ std::tuple<llvm::Value*, llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorAr
 	return std::make_tuple(op1, op2, op3);
 }
 
-std::pair<llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorArm::loadOpTernaryOp1Op2(
+std::pair<llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorArm_impl::loadOpTernaryOp1Op2(
 		cs_arm* ai,
 		llvm::IRBuilder<>& irb,
 		eOpConv ct)
@@ -686,7 +686,7 @@ std::pair<llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorArm::loadOpTernar
 	return std::make_pair(op1, op2);
 }
 
-llvm::Instruction* Capstone2LlvmIrTranslatorArm::storeRegister(
+llvm::Instruction* Capstone2LlvmIrTranslatorArm_impl::storeRegister(
 		uint32_t r,
 		llvm::Value* val,
 		llvm::IRBuilder<>& irb,
@@ -751,7 +751,7 @@ llvm::Instruction* Capstone2LlvmIrTranslatorArm::storeRegister(
 	return irb.CreateStore(val, llvmReg);
 }
 
-llvm::Instruction* Capstone2LlvmIrTranslatorArm::storeOp(
+llvm::Instruction* Capstone2LlvmIrTranslatorArm_impl::storeOp(
 		cs_arm_op& op,
 		llvm::Value* val,
 		llvm::IRBuilder<>& irb,
@@ -871,7 +871,7 @@ llvm::Instruction* Capstone2LlvmIrTranslatorArm::storeOp(
 /**
  * carry_add()
  */
-llvm::Value* Capstone2LlvmIrTranslatorArm::genCarryAdd(
+llvm::Value* Capstone2LlvmIrTranslatorArm_impl::genCarryAdd(
 		llvm::Value* add,
 		llvm::Value* op0,
 		llvm::IRBuilder<>& irb)
@@ -888,7 +888,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm::genCarryAdd(
  *   after generation optimizations.
  * - Use a different value as cf.
  */
-llvm::Value* Capstone2LlvmIrTranslatorArm::genCarryAddC(
+llvm::Value* Capstone2LlvmIrTranslatorArm_impl::genCarryAddC(
 		llvm::Value* op0,
 		llvm::Value* op1,
 		llvm::IRBuilder<>& irb,
@@ -910,7 +910,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm::genCarryAddC(
 /**
  * overflow_add()
  */
-llvm::Value* Capstone2LlvmIrTranslatorArm::genOverflowAdd(
+llvm::Value* Capstone2LlvmIrTranslatorArm_impl::genOverflowAdd(
 		llvm::Value* add,
 		llvm::Value* op0,
 		llvm::Value* op1,
@@ -925,7 +925,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm::genOverflowAdd(
 /**
  * overflow_add_c()
  */
-llvm::Value* Capstone2LlvmIrTranslatorArm::genOverflowAddC(
+llvm::Value* Capstone2LlvmIrTranslatorArm_impl::genOverflowAddC(
 		llvm::Value* add,
 		llvm::Value* op0,
 		llvm::Value* op1,
@@ -948,7 +948,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm::genOverflowAddC(
 /**
  * borrow_sub()
  */
-llvm::Value* Capstone2LlvmIrTranslatorArm::genBorrowSub(
+llvm::Value* Capstone2LlvmIrTranslatorArm_impl::genBorrowSub(
 		llvm::Value* op0,
 		llvm::Value* op1,
 		llvm::IRBuilder<>& irb)
@@ -959,7 +959,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm::genBorrowSub(
 /**
  * borrow_sub_c()
  */
-llvm::Value* Capstone2LlvmIrTranslatorArm::genBorrowSubC(
+llvm::Value* Capstone2LlvmIrTranslatorArm_impl::genBorrowSubC(
 		llvm::Value* sub,
 		llvm::Value* op0,
 		llvm::Value* op1,
@@ -984,7 +984,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm::genBorrowSubC(
 /**
  * overflow_sub()
  */
-llvm::Value* Capstone2LlvmIrTranslatorArm::genOverflowSub(
+llvm::Value* Capstone2LlvmIrTranslatorArm_impl::genOverflowSub(
 		llvm::Value* sub,
 		llvm::Value* op0,
 		llvm::Value* op1,
@@ -999,7 +999,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm::genOverflowSub(
 /**
  * overflow_sub_c()
  */
-llvm::Value* Capstone2LlvmIrTranslatorArm::genOverflowSubC(
+llvm::Value* Capstone2LlvmIrTranslatorArm_impl::genOverflowSubC(
 		llvm::Value* sub,
 		llvm::Value* op0,
 		llvm::Value* op1,
@@ -1018,7 +1018,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm::genOverflowSubC(
 	return irb.CreateICmpSLT(ofAnd, llvm::ConstantInt::get(ofAnd->getType(), 0));
 }
 
-llvm::Value* Capstone2LlvmIrTranslatorArm::generateInsnConditionCode(
+llvm::Value* Capstone2LlvmIrTranslatorArm_impl::generateInsnConditionCode(
 		llvm::IRBuilder<>& irb,
 		cs_arm* ai)
 {
@@ -1134,7 +1134,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm::generateInsnConditionCode(
 	}
 }
 
-void Capstone2LlvmIrTranslatorArm::translateInstruction(
+void Capstone2LlvmIrTranslatorArm_impl::translateInstruction(
 		cs_insn* i,
 		llvm::IRBuilder<>& irb)
 {
@@ -1199,7 +1199,7 @@ void Capstone2LlvmIrTranslatorArm::translateInstruction(
  * TODO: Castone sets update_flags==true even when "adc", not "adcs".
  * Check onece more and report as bug.
  */
-void Capstone2LlvmIrTranslatorArm::translateAdc(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateAdc(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadOpTernaryOp1Op2(ai, irb, eOpConv::THROW);
 	auto* cf = loadRegister(ARM_REG_CPSR_C, irb);
@@ -1219,7 +1219,7 @@ void Capstone2LlvmIrTranslatorArm::translateAdc(cs_insn* i, cs_arm* ai, llvm::IR
 /**
  * ARM_INS_ADD, ARM_INS_CMN (ADDS but result is discarded)
  */
-void Capstone2LlvmIrTranslatorArm::translateAdd(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateAdd(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	// TODO:
 	// IDA     : 00008410 00 C6 8F E2    ADR R12, 0x8418
@@ -1255,7 +1255,7 @@ void Capstone2LlvmIrTranslatorArm::translateAdd(cs_insn* i, cs_arm* ai, llvm::IR
 /**
  * ARM_INS_AND, ARM_INS_BIC, ARM_INS_TST (ANDS but result is discarded)
  */
-void Capstone2LlvmIrTranslatorArm::translateAnd(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateAnd(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadOpTernaryOp1Op2(ai, irb, eOpConv::THROW);
 	if (i->id == ARM_INS_BIC)
@@ -1282,7 +1282,7 @@ void Capstone2LlvmIrTranslatorArm::translateAnd(cs_insn* i, cs_arm* ai, llvm::IR
 /**
  * ARM_INS_B, ARM_INS_BX (exchange instruction)
  */
-void Capstone2LlvmIrTranslatorArm::translateB(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateB(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	op0 = loadOpUnary(ai, irb);
 	if (ai->cc == ARM_CC_AL || ai->cc == ARM_CC_INVALID)
@@ -1299,7 +1299,7 @@ void Capstone2LlvmIrTranslatorArm::translateB(cs_insn* i, cs_arm* ai, llvm::IRBu
 /**
  * ARM_INS_BL, ARM_INS_BLX (exchange instruction)
  */
-void Capstone2LlvmIrTranslatorArm::translateBl(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateBl(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	storeRegister(ARM_REG_LR, getNextInsnAddress(i), irb);
 	op0 = loadOpUnary(ai, irb);
@@ -1319,7 +1319,7 @@ void Capstone2LlvmIrTranslatorArm::translateBl(cs_insn* i, cs_arm* ai, llvm::IRB
  * ARM_INS_CBNZ
  * TODO: unit test
  */
-void Capstone2LlvmIrTranslatorArm::translateCbnz(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateCbnz(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	std::tie(op0, op1) = loadOpBinary(ai, irb, eOpConv::NOTHING);
 	auto* cond = irb.CreateICmpNE(op0, llvm::ConstantInt::get(op0->getType(), 0));
@@ -1334,7 +1334,7 @@ void Capstone2LlvmIrTranslatorArm::translateCbnz(cs_insn* i, cs_arm* ai, llvm::I
  * ARM_INS_CBZ
  * TODO: unit test
  */
-void Capstone2LlvmIrTranslatorArm::translateCbz(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateCbz(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	std::tie(op0, op1) = loadOpBinary(ai, irb, eOpConv::NOTHING);
 	auto* cond = irb.CreateICmpEQ(op0, llvm::ConstantInt::get(op0->getType(), 0));
@@ -1348,7 +1348,7 @@ void Capstone2LlvmIrTranslatorArm::translateCbz(cs_insn* i, cs_arm* ai, llvm::IR
 /**
  * ARM_INS_CLZ
  */
-void Capstone2LlvmIrTranslatorArm::translateClz(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateClz(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	op1 = loadOpBinaryOp1(ai, irb);
 	auto* f = llvm::Intrinsic::getDeclaration(
@@ -1362,7 +1362,7 @@ void Capstone2LlvmIrTranslatorArm::translateClz(cs_insn* i, cs_arm* ai, llvm::IR
 /**
  * ARM_INS_EOR, ARM_INS_TEQ (EORS but result is discarded)
  */
-void Capstone2LlvmIrTranslatorArm::translateEor(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateEor(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadOpTernaryOp1Op2(ai, irb, eOpConv::THROW);
 	auto* val = irb.CreateXor(op1, op2);
@@ -1385,7 +1385,7 @@ void Capstone2LlvmIrTranslatorArm::translateEor(cs_insn* i, cs_arm* ai, llvm::IR
 /**
  * ARM_INS_MLA
  */
-void Capstone2LlvmIrTranslatorArm::translateMla(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateMla(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2, op3) = loadOpQuaternaryOp1Op2Op3(ai, irb);
 	auto* val = irb.CreateMul(op1, op2);
@@ -1408,7 +1408,7 @@ void Capstone2LlvmIrTranslatorArm::translateMla(cs_insn* i, cs_arm* ai, llvm::IR
 /**
  * ARM_INS_MLS
  */
-void Capstone2LlvmIrTranslatorArm::translateMls(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateMls(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2, op3) = loadOpQuaternaryOp1Op2Op3(ai, irb);
 	auto* val = irb.CreateMul(op1, op2);
@@ -1419,7 +1419,7 @@ void Capstone2LlvmIrTranslatorArm::translateMls(cs_insn* i, cs_arm* ai, llvm::IR
 /**
  * ARM_INS_MOV, ARM_INS_MVN,
  */
-void Capstone2LlvmIrTranslatorArm::translateMov(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateMov(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	// TODO: e.g. "2c 12 f0 13" = "mvnsne r1, #44, #4"
 	//
@@ -1461,7 +1461,7 @@ void Capstone2LlvmIrTranslatorArm::translateMov(cs_insn* i, cs_arm* ai, llvm::IR
  *
  * TODO: When these problems are fixed, this should be merged with simple MOV.
  */
-void Capstone2LlvmIrTranslatorArm::translateShifts(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateShifts(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	// We expect 2nd operand to have shift/rotate set -> loadOp() will take
 	// care of shift/rotate computation.
@@ -1519,7 +1519,7 @@ void Capstone2LlvmIrTranslatorArm::translateShifts(cs_insn* i, cs_arm* ai, llvm:
 /**
  * ARM_INS_MOVT
  */
-void Capstone2LlvmIrTranslatorArm::translateMovt(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateMovt(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	// TODO: It looks like on THUMB, op0 is not ANDed -- investigate.
 	// Add/Fix THUMB unit tests.
@@ -1543,7 +1543,7 @@ void Capstone2LlvmIrTranslatorArm::translateMovt(cs_insn* i, cs_arm* ai, llvm::I
 /**
  * ARM_INS_MOVW
  */
-void Capstone2LlvmIrTranslatorArm::translateMovw(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateMovw(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	// TODO: It looks like on THUMB, result is overwritten -- investigate.
 	// Add/Fix THUMB unit tests.
@@ -1565,7 +1565,7 @@ void Capstone2LlvmIrTranslatorArm::translateMovw(cs_insn* i, cs_arm* ai, llvm::I
 /**
  * ARM_INS_MUL
  */
-void Capstone2LlvmIrTranslatorArm::translateMul(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateMul(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadOpTernaryOp1Op2(ai, irb, eOpConv::THROW);
 	auto* val = irb.CreateMul(op1, op2);
@@ -1585,7 +1585,7 @@ void Capstone2LlvmIrTranslatorArm::translateMul(cs_insn* i, cs_arm* ai, llvm::IR
 /**
  * ARM_INS_NOP, ARM_INS_SVC (TODO)
  */
-void Capstone2LlvmIrTranslatorArm::translateNop(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateNop(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	// nothing
 }
@@ -1593,7 +1593,7 @@ void Capstone2LlvmIrTranslatorArm::translateNop(cs_insn* i, cs_arm* ai, llvm::IR
 /**
  * ARM_INS_ORR
  */
-void Capstone2LlvmIrTranslatorArm::translateOrr(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateOrr(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadOpTernaryOp1Op2(ai, irb, eOpConv::THROW);
 	auto* val = irb.CreateOr(op1, op2);
@@ -1633,7 +1633,7 @@ void Capstone2LlvmIrTranslatorArm::translateOrr(cs_insn* i, cs_arm* ai, llvm::IR
  * We should remember such branch and generate it last, because in CPU,
  * all the instruction is executed.
  */
-void Capstone2LlvmIrTranslatorArm::translateLdmStm(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateLdmStm(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	assert(ai->op_count > 0);
 
@@ -1753,7 +1753,7 @@ void Capstone2LlvmIrTranslatorArm::translateLdmStm(cs_insn* i, cs_arm* ai, llvm:
 /**
  * ARM_INS_REV
  */
-void Capstone2LlvmIrTranslatorArm::translateRev(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateRev(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	op1 = loadOpBinaryOp1(ai, irb);
 	auto* f = llvm::Intrinsic::getDeclaration(
@@ -1768,7 +1768,7 @@ void Capstone2LlvmIrTranslatorArm::translateRev(cs_insn* i, cs_arm* ai, llvm::IR
  * ARM_INS_SBC, ARM_INS_RSC
  * TODO: The same flag-update problem as with ARM_INS_ADC.
  */
-void Capstone2LlvmIrTranslatorArm::translateSbc(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateSbc(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	if (i->id == ARM_INS_SBC)
 	{
@@ -1818,7 +1818,7 @@ void Capstone2LlvmIrTranslatorArm::translateSbc(cs_insn* i, cs_arm* ai, llvm::IR
  * everywhere where writeback is generated. In these cases, branch generated for
  * PC write should be the last instruction.
  */
-void Capstone2LlvmIrTranslatorArm::translateLdr(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateLdr(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	llvm::Type* ty = nullptr;
 	bool sext = false;
@@ -1920,7 +1920,7 @@ void Capstone2LlvmIrTranslatorArm::translateLdr(cs_insn* i, cs_arm* ai, llvm::IR
  * ARM_INS_LDRD (double word)
  * ARM_INS_LDREXD (exclusive, see @c translateLdr())
  */
-void Capstone2LlvmIrTranslatorArm::translateLdrd(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateLdrd(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	uint32_t baseR = ARM_REG_INVALID;
 	llvm::Value* idx = nullptr;
@@ -1987,7 +1987,7 @@ void Capstone2LlvmIrTranslatorArm::translateLdrd(cs_insn* i, cs_arm* ai, llvm::I
  * STR R0, [R4, #4]! ; pre-indexed  : *(int*)(R4+4) = R0; R4 = R4+4
  * STR R0, [R4], #4  ; post-indexed : *(int*)(R4+0) = R0; R4 = R4+4
  */
-void Capstone2LlvmIrTranslatorArm::translateStr(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateStr(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	if (!(ai->op_count > 1))
 	{
@@ -2129,7 +2129,7 @@ void Capstone2LlvmIrTranslatorArm::translateStr(cs_insn* i, cs_arm* ai, llvm::IR
 /**
  * ARM_INS_SUB, ARM_INS_RSB, ARM_INS_CMP (SUBS but result is discarded)
  */
-void Capstone2LlvmIrTranslatorArm::translateSub(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateSub(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	if (i->id == ARM_INS_RSB)
 	{
@@ -2169,7 +2169,7 @@ void Capstone2LlvmIrTranslatorArm::translateSub(cs_insn* i, cs_arm* ai, llvm::IR
 /**
  * ARM_INS_UMLAL, ARM_INS_SMLAL
  */
-void Capstone2LlvmIrTranslatorArm::translateUmlal(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateUmlal(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	if (ai->op_count != 4)
 	{
@@ -2216,7 +2216,7 @@ void Capstone2LlvmIrTranslatorArm::translateUmlal(cs_insn* i, cs_arm* ai, llvm::
 /**
  * ARM_INS_UMULL, ARM_INS_SMULL
  */
-void Capstone2LlvmIrTranslatorArm::translateUmull(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateUmull(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	if (ai->op_count != 4)
 	{
@@ -2261,7 +2261,7 @@ void Capstone2LlvmIrTranslatorArm::translateUmull(cs_insn* i, cs_arm* ai, llvm::
  *
  * TODO: Move to parent abstract class?
  */
-void Capstone2LlvmIrTranslatorArm::translateBinaryPseudoAsm(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateBinaryPseudoAsm(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	op1 = loadOpBinaryOp1(ai, irb);
 
@@ -2303,7 +2303,7 @@ void Capstone2LlvmIrTranslatorArm::translateBinaryPseudoAsm(cs_insn* i, cs_arm* 
  *
  * TODO: Move to parent abstract class?
  */
-void Capstone2LlvmIrTranslatorArm::translateTernaryPseudoAsm(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateTernaryPseudoAsm(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadOpTernaryOp1Op2(ai, irb, eOpConv::THROW);
 
@@ -2329,7 +2329,7 @@ void Capstone2LlvmIrTranslatorArm::translateTernaryPseudoAsm(cs_insn* i, cs_arm*
  * ARM_INS_UXTAH
  * TOOD: Unit tests.
  */
-void Capstone2LlvmIrTranslatorArm::translateUxtah(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateUxtah(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadOpTernaryOp1Op2(ai, irb, eOpConv::THROW);
 	op2 = irb.CreateZExtOrTrunc(op2, irb.getInt16Ty());
@@ -2342,7 +2342,7 @@ void Capstone2LlvmIrTranslatorArm::translateUxtah(cs_insn* i, cs_arm* ai, llvm::
  * ARM_INS_UXTB
  * TODO: unit tests
  */
-void Capstone2LlvmIrTranslatorArm::translateUxtb(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateUxtb(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	op1 = loadOpBinaryOp1(ai, irb);
 	op1 = irb.CreateAnd(op1, 0x000000ff);
@@ -2356,7 +2356,7 @@ void Capstone2LlvmIrTranslatorArm::translateUxtb(cs_insn* i, cs_arm* ai, llvm::I
  * are the same.
  * TOOD: Unit tests.
  */
-void Capstone2LlvmIrTranslatorArm::translateUxtb16(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateUxtb16(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	op1 = loadOpBinaryOp1(ai, irb);
 	op1 = irb.CreateAnd(op1, 0x00ff00ff);
@@ -2367,7 +2367,7 @@ void Capstone2LlvmIrTranslatorArm::translateUxtb16(cs_insn* i, cs_arm* ai, llvm:
  * ARM_INS_UXTH
  * TODO: unit tests
  */
-void Capstone2LlvmIrTranslatorArm::translateUxth(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateUxth(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	op1 = loadOpBinaryOp1(ai, irb);
 	op1 = irb.CreateAnd(op1, 0x0000ffff);
@@ -2379,7 +2379,7 @@ void Capstone2LlvmIrTranslatorArm::translateUxth(cs_insn* i, cs_arm* ai, llvm::I
  *
  * ARM_INS_BFC
  */
-void Capstone2LlvmIrTranslatorArm::translateTernaryPseudoAsm3Args(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateTernaryPseudoAsm3Args(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	std::tie(op0, op1, op2) = loadOpTernary(ai, irb);
 
@@ -2412,7 +2412,7 @@ void Capstone2LlvmIrTranslatorArm::translateTernaryPseudoAsm3Args(cs_insn* i, cs
  *
  * TODO: Move to parent abstract class?
  */
-void Capstone2LlvmIrTranslatorArm::translateQuaternaryPseudoAsm(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateQuaternaryPseudoAsm(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	assert(ai->op_count == 4);
 
@@ -2435,7 +2435,7 @@ void Capstone2LlvmIrTranslatorArm::translateQuaternaryPseudoAsm(cs_insn* i, cs_a
  *
  * ARM_INS_BFI
  */
-void Capstone2LlvmIrTranslatorArm::translateQuaternaryPseudoAsm4Args(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateQuaternaryPseudoAsm4Args(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	assert(ai->op_count == 4);
 
@@ -2461,7 +2461,7 @@ void Capstone2LlvmIrTranslatorArm::translateQuaternaryPseudoAsm4Args(cs_insn* i,
  * ARM_INS_SMLALTB, ARM_INS_SMLALD, ARM_INS_SMLALDX, ARM_INS_SMLSLD,
  * ARM_INS_SMLSLDX
  */
-void Capstone2LlvmIrTranslatorArm::translateQuaternaryPseudoAsm4Args2Dsts(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
+void Capstone2LlvmIrTranslatorArm_impl::translateQuaternaryPseudoAsm4Args2Dsts(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	assert(ai->op_count == 4);
 
