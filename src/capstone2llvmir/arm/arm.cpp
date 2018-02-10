@@ -1034,7 +1034,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm_impl::generateInsnConditionCode(
 		case ARM_CC_NE:
 		{
 			auto* z = loadRegister(ARM_REG_CPSR_Z, irb);
-			return genValueNegate(irb, z);
+			return generateValueNegate(irb, z);
 		}
 		// Unsigned higher or same = Carry set
 		case ARM_CC_HS:
@@ -1046,7 +1046,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm_impl::generateInsnConditionCode(
 		case ARM_CC_LO:
 		{
 			auto* c = loadRegister(ARM_REG_CPSR_C, irb);
-			return genValueNegate(irb, c);
+			return generateValueNegate(irb, c);
 		}
 		// Negative = N set
 		case ARM_CC_MI:
@@ -1058,7 +1058,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm_impl::generateInsnConditionCode(
 		case ARM_CC_PL:
 		{
 			auto* n = loadRegister(ARM_REG_CPSR_N, irb);
-			return genValueNegate(irb, n);
+			return generateValueNegate(irb, n);
 		}
 		// Overflow = V set
 		case ARM_CC_VS:
@@ -1070,14 +1070,14 @@ llvm::Value* Capstone2LlvmIrTranslatorArm_impl::generateInsnConditionCode(
 		case ARM_CC_VC:
 		{
 			auto* v = loadRegister(ARM_REG_CPSR_V, irb);
-			return genValueNegate(irb, v);
+			return generateValueNegate(irb, v);
 		}
 		// Unsigned higher = Carry set & Zero clear
 		case ARM_CC_HI:
 		{
 			auto* c = loadRegister(ARM_REG_CPSR_C, irb);
 			auto* z = loadRegister(ARM_REG_CPSR_Z, irb);
-			auto* nz = genValueNegate(irb, z);
+			auto* nz = generateValueNegate(irb, z);
 			return irb.CreateAnd(c, nz);
 		}
 		// Unsigned lower or same = Carry clear or Zero set
@@ -1085,7 +1085,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm_impl::generateInsnConditionCode(
 		{
 			auto* z = loadRegister(ARM_REG_CPSR_Z, irb);
 			auto* c = loadRegister(ARM_REG_CPSR_C, irb);
-			auto* nc = genValueNegate(irb, c);
+			auto* nc = generateValueNegate(irb, c);
 			return irb.CreateOr(z, nc);
 		}
 		// Greater than or equal = N set and V set || N clear and V clear
@@ -1095,7 +1095,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm_impl::generateInsnConditionCode(
 			auto* n = loadRegister(ARM_REG_CPSR_N, irb);
 			auto* v = loadRegister(ARM_REG_CPSR_V, irb);
 			auto* x = irb.CreateXor(n, v);
-			return genValueNegate(irb, x);
+			return generateValueNegate(irb, x);
 		}
 		// Less than = N set and V clear || N clear and V set
 		// (N & !V) || (!N & V) == (N xor V)
@@ -1113,7 +1113,7 @@ llvm::Value* Capstone2LlvmIrTranslatorArm_impl::generateInsnConditionCode(
 			auto* v = loadRegister(ARM_REG_CPSR_V, irb);
 			auto* xor1 = irb.CreateXor(n, v);
 			auto* or1 = irb.CreateOr(z, xor1);
-			return genValueNegate(irb, or1);
+			return generateValueNegate(irb, or1);
 		}
 		// Less than or equal = Z set, or N set and V clear, or N clear and V set
 		case ARM_CC_LE:
@@ -1260,7 +1260,7 @@ void Capstone2LlvmIrTranslatorArm_impl::translateAnd(cs_insn* i, cs_arm* ai, llv
 	std::tie(op1, op2) = loadOpTernaryOp1Op2(ai, irb, eOpConv::THROW);
 	if (i->id == ARM_INS_BIC)
 	{
-		op2 = genValueNegate(irb, op2);
+		op2 = generateValueNegate(irb, op2);
 	}
 	auto* val = irb.CreateAnd(op1, op2);
 	if (i->id != ARM_INS_TST)
@@ -1431,7 +1431,7 @@ void Capstone2LlvmIrTranslatorArm_impl::translateMov(cs_insn* i, cs_arm* ai, llv
 	op1 = loadOpBinaryOp1(ai, irb);
 	if (i->id == ARM_INS_MVN)
 	{
-		op1 = genValueNegate(irb, op1);
+		op1 = generateValueNegate(irb, op1);
 	}
 	storeOp(ai->operands[0], op1, irb);
 	// If S is specified, the MOV instruction:
@@ -1789,7 +1789,7 @@ void Capstone2LlvmIrTranslatorArm_impl::translateSbc(cs_insn* i, cs_arm* ai, llv
 		llvm::Value* zero = llvm::ConstantInt::get(val->getType(), 0);
 		// TODO: There is xor -1 (negate) in the original semantics. Is it ok?
 //		storeRegister(ARM_REG_CPSR_C, genBorrowSubC(val, op1, op2, irb, cf), irb);
-		storeRegister(ARM_REG_CPSR_C, genValueNegate(irb, genBorrowSubC(val, op1, op2, irb, cf)), irb);
+		storeRegister(ARM_REG_CPSR_C, generateValueNegate(irb, genBorrowSubC(val, op1, op2, irb, cf)), irb);
 
 		storeRegister(ARM_REG_CPSR_V, genOverflowSubC(val, op1, op2, irb, cf), irb);
 		storeRegister(ARM_REG_CPSR_N, irb.CreateICmpSLT(val, zero), irb);
@@ -2149,10 +2149,10 @@ void Capstone2LlvmIrTranslatorArm_impl::translateSub(cs_insn* i, cs_arm* ai, llv
 		llvm::Value* zero = llvm::ConstantInt::get(sub->getType(), 0);
 
 		// ARM - ok, but maybe generates more ugly code.
-		storeRegister(ARM_REG_CPSR_C, genValueNegate(irb, genBorrowSub(op1, op2, irb)), irb);
+		storeRegister(ARM_REG_CPSR_C, generateValueNegate(irb, genBorrowSub(op1, op2, irb)), irb);
 		// THUMB - weird, but at least in ackermann.thumb.gnuarmgcc-4.4.1.O0.g.elf
 		// it generates prettier code. I'm not even sure they are the same.
-//		auto* op2Neg = genValueNegate(irb, op2);
+//		auto* op2Neg = generateValueNegate(irb, op2);
 //		storeRegister(ARM_REG_CPSR_C, genCarryAddC(op1, op2Neg, irb, llvm::ConstantInt::getSigned(op2Neg->getType(), -1)), irb);
 
 		storeRegister(ARM_REG_CPSR_V, genOverflowSub(sub, op1, op2, irb), irb);

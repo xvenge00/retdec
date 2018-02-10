@@ -1135,7 +1135,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateAnd(cs_insn* i, cs_ppc* pi,
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateAndc(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
-	op2 = genValueNegate(irb, op2);
+	op2 = generateValueNegate(irb, op2);
 	auto* val = irb.CreateAnd(op1, op2);
 	storeOp(pi->operands[0], val, irb);
 	storeCr0(irb, pi, val);
@@ -1255,7 +1255,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateEqv(cs_insn* i, cs_ppc* pi,
 {
 	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
 	auto* val = irb.CreateXor(op1, op2);
-	val = genValueNegate(irb, val);
+	val = generateValueNegate(irb, val);
 	storeOp(pi->operands[0], val, irb);
 	storeCr0(irb, pi, val);
 }
@@ -1755,7 +1755,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateCrNotMove(cs_insn* i, cs_pp
 	}
 	else if (i->id == PPC_INS_CRNOT)
 	{
-		op1 = genValueNegate(irb, op1);
+		op1 = generateValueNegate(irb, op1);
 		storeRegister(crReg0, op1, irb);
 	}
 }
@@ -1976,7 +1976,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateNand(cs_insn* i, cs_ppc* pi
 {
 	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
 	auto* val = irb.CreateAnd(op1, op2);
-	val = genValueNegate(irb, val);
+	val = generateValueNegate(irb, val);
 	storeOp(pi->operands[0], val, irb);
 	storeCr0(irb, pi, val);
 }
@@ -2007,7 +2007,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateNor(cs_insn* i, cs_ppc* pi,
 {
 	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
 	auto* val = irb.CreateOr(op1, op2);
-	val = genValueNegate(irb, val);
+	val = generateValueNegate(irb, val);
 	storeOp(pi->operands[0], val, irb);
 	storeCr0(irb, pi, val);
 }
@@ -2020,7 +2020,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateNot(cs_insn* i, cs_ppc* pi,
 	op1 = loadOpBinaryOp1(pi, irb);
 	op2 = op1;
 	auto* val = irb.CreateOr(op1, op2);
-	val = genValueNegate(irb, val);
+	val = generateValueNegate(irb, val);
 	storeOp(pi->operands[0], val, irb);
 	storeCr0(irb, pi, val);
 }
@@ -2042,7 +2042,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateOr(cs_insn* i, cs_ppc* pi, 
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateOrc(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
-	op2 = genValueNegate(irb, op2);
+	op2 = generateValueNegate(irb, op2);
 	auto* val = irb.CreateOr(op1, op2);
 	storeOp(pi->operands[0], val, irb);
 	storeCr0(irb, pi, val);
@@ -2248,13 +2248,13 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateSubfc(cs_insn* i, cs_ppc* p
 	}
 
 	// PowerPC specification.
-//	op1 = genValueNegate(irb, op1);
+//	op1 = generateValueNegate(irb, op1);
 //	auto* val = irb.CreateAdd(op1, op2);
 //	val = irb.CreateAdd(val, llvm::ConstantInt::get(val->getType(), 1));
 
 	// The same but simpler?
 	auto* val = irb.CreateSub(op2, op1);
-	op1 = genValueNegate(irb, op1);
+	op1 = generateValueNegate(irb, op1);
 
 	storeOp(pi->operands[0], val, irb);
 	storeCr0(irb, pi, val);
@@ -2273,7 +2273,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateSubfc(cs_insn* i, cs_ppc* p
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateSubfe(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
 	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_SEXT);
-	auto* op1Neg = genValueNegate(irb, op1);
+	auto* op1Neg = generateValueNegate(irb, op1);
 	auto* val = irb.CreateAdd(op1Neg, op2);
 	auto* carry = loadRegister(PPC_REG_CARRY, irb);
 	carry = irb.CreateZExtOrTrunc(carry, val->getType());
@@ -2293,7 +2293,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateSubfe(cs_insn* i, cs_ppc* p
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateSubfme(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
 	op1 = loadOpBinaryOp1(pi, irb);
-	auto* op1Neg = genValueNegate(irb, op1);
+	auto* op1Neg = generateValueNegate(irb, op1);
 	auto* carry = loadRegister(PPC_REG_CARRY, irb);
 	carry = irb.CreateZExtOrTrunc(carry, op1->getType());
 	auto* negativeTwo = llvm::ConstantInt::getSigned(op1->getType(), -2);
@@ -2313,7 +2313,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateSubfme(cs_insn* i, cs_ppc* 
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateSubfze(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
 	op1 = loadOpBinaryOp1(pi, irb);
-	auto* op1Neg = genValueNegate(irb, op1);
+	auto* op1Neg = generateValueNegate(irb, op1);
 	auto* carry = loadRegister(PPC_REG_CARRY, irb);
 	carry = irb.CreateZExtOrTrunc(carry, op1->getType());
 	auto* val = irb.CreateAdd(op1Neg, carry);

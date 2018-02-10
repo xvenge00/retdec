@@ -243,7 +243,6 @@ class Capstone2LlvmIrTranslator
 				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
 
 		virtual ~Capstone2LlvmIrTranslator();
-
 //
 //==============================================================================
 // Mode query & modification methods.
@@ -292,7 +291,6 @@ class Capstone2LlvmIrTranslator
 		 * mode.
 		 */
 		virtual uint32_t getArchBitSize() = 0;
-
 //
 //==============================================================================
 // Translation methods.
@@ -321,7 +319,6 @@ class Capstone2LlvmIrTranslator
 				retdec::utils::Address a,
 				llvm::IRBuilder<>& irb,
 				bool stopOnBranch = false) = 0;
-
 //
 //==============================================================================
 // Capstone related getters.

@@ -1,25 +1,64 @@
 /**
  * @file src/capstone2llvmir/capstone2llvmir_impl.h
- * @brief Converts bytes to Capstone representation, and Capstone representation
- *        to LLVM IR.
+ * @brief Common private implementation for translators converting bytes to
+ * LLVM IR.
  * @copyright (c) 2017 Avast Software, licensed under the MIT license
  */
 
 #ifndef CAPSTONE2LLVMIR_CAPSTONE2LLVMIR_IMPL_H
 #define CAPSTONE2LLVMIR_CAPSTONE2LLVMIR_IMPL_H
 
+#include "capstone2llvmir/llvmir_utils.h"
 #include "retdec/capstone2llvmir/capstone2llvmir.h"
 
 namespace retdec {
 namespace capstone2llvmir {
 
+/**
+ * Private implementation class.
+ *
+ * Implements a lot of stuff from @c Capstone2LlvmIrTranslator public interface
+ * that is common for all translators. However:
+ * - Not all the pure virtual methods are implemented, some of them are
+ *   inherently architecture specific and must be implemented in the concrete
+ *   translator classes.
+ * - Even those virtual methods that are implemented here may be overriden and
+ *   re-implemented in the concrete translator classes.
+ * - Adds more implementation-related pure virtual methods that must be
+ *   implemented in the concrete translator classes.
+ */
 class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 {
 	public:
+		Capstone2LlvmIrTranslator_impl(
+				cs_arch a,
+				cs_mode basic,
+				cs_mode extra,
+				llvm::Module* m);
 		virtual ~Capstone2LlvmIrTranslator_impl();
-
-	// Capstone related getters.
-	//
+//
+//==============================================================================
+// Mode query & modification methods.
+//==============================================================================
+//
+		// All of these are inherently architecture specific -> implemented
+		// in the concrete translator classes.
+//
+//==============================================================================
+// Translation methods - from Capstone2LlvmIrTranslator.
+//==============================================================================
+//
+	public:
+		virtual TranslationResult translate(
+				const std::vector<uint8_t>& bytes,
+				retdec::utils::Address a,
+				llvm::IRBuilder<>& irb,
+				bool stopOnBranch = false) override;
+//
+//==============================================================================
+// Capstone related getters - from Capstone2LlvmIrTranslator.
+//==============================================================================
+//
 	public:
 		virtual const csh& getCapstoneEngine() const override;
 		virtual cs_arch getArchitecture() const override;
@@ -31,8 +70,16 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 		virtual bool hasDelaySlotLikely(uint32_t id) const override;
 		virtual std::size_t getDelaySlot(uint32_t id) const override;
 
-	// LLVM related getters and query methods.
-	//
+		virtual llvm::GlobalVariable* getRegister(uint32_t r) override;
+		virtual std::string getRegisterName(uint32_t r) const override;
+		virtual uint32_t getRegisterBitSize(uint32_t r) const override;
+		virtual uint32_t getRegisterByteSize(uint32_t r) const override;
+		virtual llvm::Type* getRegisterType(uint32_t r) const override;
+//
+//==============================================================================
+// LLVM related getters and query methods - from Capstone2LlvmIrTranslator.
+//==============================================================================
+//
 	public:
 		virtual llvm::Module* getModule() const override;
 
@@ -58,28 +105,11 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 
 		virtual llvm::GlobalVariable* isRegister(llvm::Value* v) const override;
 		virtual uint32_t getCapstoneRegister(llvm::GlobalVariable* gv) const override;
-		virtual llvm::GlobalVariable* getRegister(uint32_t r) override;
-		virtual std::string getRegisterName(uint32_t r) const override;
-		virtual uint32_t getRegisterBitSize(uint32_t r) const override;
-		virtual uint32_t getRegisterByteSize(uint32_t r) const override;
-		virtual llvm::Type* getRegisterType(uint32_t r) const override;
-
-	// Translation methods.
-	//
-	public:
-		virtual TranslationResult translate(
-				const std::vector<uint8_t>& bytes,
-				retdec::utils::Address a,
-				llvm::IRBuilder<>& irb,
-				bool stopOnBranch = false) override;
-
+//
 //==============================================================================
+// New implementation-related pure virtual methods.
 //==============================================================================
-//==============================================================================
-
-	// Protected pure virtual methods that must be implemented in concrete
-	// classes.
-	//
+//
 	protected:
 		/**
 		 * Do architecture and mode specific initialization on top of common
@@ -88,8 +118,8 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 		virtual void initializeArchSpecific() = 0;
 
 		/**
-		 * Initialize @c _reg2name. See comment for @c _reg2name to know what must
-		 * be initialized, and what may or may not be initialized.
+		 * Initialize @c _reg2name. See comment for @c _reg2name to know what
+		 * must be initialized, and what may or may not be initialized.
 		 */
 		virtual void initializeRegNameMap() = 0;
 
@@ -123,10 +153,14 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 		virtual void translateInstruction(
 				cs_insn* i,
 				llvm::IRBuilder<>& irb) = 0;
-
+//
+//==============================================================================
+// Common implementation enums, structures, classes, etc.
+//==============================================================================
+//
 	protected:
 		/**
-		 * What should instruction operand loading method do, if types of
+		 * What should instruction operand loading method do if types of
 		 * loaded operands are not the same.
 		 */
 		enum class eOpConv
@@ -158,22 +192,18 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 			/// Source must be integer, destination fp, or LLVM asserts.
 			UITOFP
 		};
-
+//
+//==============================================================================
+// Virtual translation initialization and environment generation methods.
+//==============================================================================
+//
 	protected:
-		Capstone2LlvmIrTranslator_impl(
-				cs_arch a,
-				cs_mode basic,
-				cs_mode extra,
-				llvm::Module* m);
-
-	protected:
+		virtual void initialize();
 		virtual void openHandle();
 		virtual void configureHandle();
 		virtual void closeHandle();
-		virtual void initialize();
 		virtual void generateEnvironment();
 
-	protected:
 		virtual void generateSpecialAsm2LlvmMapGlobal();
 		virtual llvm::StoreInst* generateSpecialAsm2LlvmInstr(
 				llvm::IRBuilder<>& irb,
@@ -201,35 +231,11 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 				llvm::GlobalValue::LinkageTypes lt =
 						llvm::GlobalValue::LinkageTypes::InternalLinkage,
 				llvm::Constant* initializer = nullptr);
-
-	protected:
-		llvm::IRBuilder<> generateIfThen(
-				llvm::Value* cond,
-				llvm::IRBuilder<>& irb);
-		llvm::IRBuilder<> generateIfNotThen(
-				llvm::Value* cond,
-				llvm::IRBuilder<>& irb);
-		std::pair<llvm::IRBuilder<>, llvm::IRBuilder<>> generateIfThenElse(
-				llvm::Value* cond,
-				llvm::IRBuilder<>& irb);
-		std::pair<llvm::IRBuilder<>, llvm::IRBuilder<>> generateWhile(
-				llvm::BranchInst*& branch,
-				llvm::IRBuilder<>& irb);
-
-		llvm::Value* genValueNegate(llvm::IRBuilder<>& irb, llvm::Value* val);
-
-	// Translation helper methods.
-	//
-	protected:
-		llvm::Type* getIntegerTypeFromByteSize(unsigned sz);
-		llvm::Type* getFloatTypeFromByteSize(unsigned sz);
-
-	private:
-		llvm::IRBuilder<> _generateIfThen(
-				llvm::Value* cond,
-				llvm::IRBuilder<>& irb,
-				bool reverse = false);
-
+//
+//==============================================================================
+// Non-virtual helper methods.
+//==============================================================================
+//
 	protected:
 		llvm::Function* getAsmFunction(const std::string& name) const;
 		llvm::Function* getOrCreateAsmFunction(
@@ -249,7 +255,11 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 				const std::string& name,
 				llvm::Type* retType,
 				llvm::ArrayRef<llvm::Type*> params);
-
+//
+//==============================================================================
+// Common implementation data.
+//==============================================================================
+//
 	protected:
 		csh _handle = 0;
 		cs_arch _arch = CS_ARCH_ALL;
@@ -265,8 +275,6 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 		llvm::GlobalValue::LinkageTypes _regLt =
 				llvm::GlobalValue::LinkageTypes::InternalLinkage;
 
-		// TODO
-//		std::map<std::size_t, llvm::Function*> _asmFunctions;
 		std::map<std::string, llvm::Function*> _asmFunctions;
 
 		/// Register number to register name map. If register number is not
@@ -290,7 +298,6 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 		/// stored to this member.
 		llvm::CallInst* _branchGenerated = nullptr;
 
-		/// TODO:
 		/// @c True if generated branch is in conditional code, e.g. uncond
 		/// branch in if-then.
 		bool _inCondition = false;

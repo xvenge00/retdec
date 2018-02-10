@@ -54,6 +54,11 @@ class Capstone2LlvmIrTranslatorX86 : virtual public Capstone2LlvmIrTranslator
 		 * Function signature: @code{.cpp} i2 (i3) @endcode
 		 */
 		virtual llvm::Function* getX87TagLoadFunction() = 0;
+		/**
+		 * @return Capstone register that is parent to the specified Capstone
+		 * register @p r. Register can be its own parent.
+		 */
+		virtual uint32_t getParentRegister(uint32_t r) = 0;
 };
 
 } // namespace capstone2llvmir

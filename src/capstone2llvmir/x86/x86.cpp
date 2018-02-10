@@ -260,7 +260,7 @@ uint32_t Capstone2LlvmIrTranslatorX86_impl::getBasePointerRegister()
 llvm::Value* Capstone2LlvmIrTranslatorX86_impl::getCurrentPc(cs_insn* i)
 {
 	return llvm::ConstantInt::get(
-			getIntegerTypeFromByteSize(getArchByteSize()),
+			getIntegerTypeFromByteSize(_module, getArchByteSize()),
 			i->address + i->size);
 }
 
@@ -1025,7 +1025,7 @@ llvm::Value* Capstone2LlvmIrTranslatorX86_impl::loadOp(
 		}
 		case X86_OP_IMM:
 		{
-			auto* t = getIntegerTypeFromByteSize(op.size);
+			auto* t = getIntegerTypeFromByteSize(_module, op.size);
 			return llvm::ConstantInt::get(t, op.imm, false);
 		}
 		case X86_OP_MEM:
@@ -1087,8 +1087,8 @@ llvm::Value* Capstone2LlvmIrTranslatorX86_impl::loadOp(
 			else
 			{
 				llvm::Type* t = fp
-						? getFloatTypeFromByteSize(op.size)
-						: getIntegerTypeFromByteSize(op.size);
+						? getFloatTypeFromByteSize(_module, op.size)
+						: getIntegerTypeFromByteSize(_module, op.size);
 				auto* pt = llvm::PointerType::get(t, 0);
 				addr = irb.CreateIntToPtr(addr, pt);
 				return irb.CreateLoad(addr);
@@ -1298,8 +1298,8 @@ llvm::Instruction* Capstone2LlvmIrTranslatorX86_impl::setOp(
 			}
 
 			auto* tt = fp
-					? getFloatTypeFromByteSize(op.size)
-					: getIntegerTypeFromByteSize(op.size);
+					? getFloatTypeFromByteSize(_module, op.size)
+					: getIntegerTypeFromByteSize(_module, op.size);
 
 			if (val->getType() != tt)
 			{
@@ -2493,7 +2493,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateLjmp(cs_insn* i, cs_x86* xi, ll
 		// Same/similar to translateLoadFarPtr().
 		op0 = loadOp(xi->operands[0], irb, true);
 
-		auto* it1 = getIntegerTypeFromByteSize(xi->operands[0].size);
+		auto* it1 = getIntegerTypeFromByteSize(_module, xi->operands[0].size);
 		auto* pt1 = llvm::PointerType::get(it1, 0);
 		auto* addr1 = irb.CreateIntToPtr(op0, pt1);
 		auto* l1 = irb.CreateLoad(addr1);
@@ -2673,7 +2673,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateLoadFarPtr(cs_insn* i, cs_x86* 
 	assert(xi->op_count == 2);
 	op1 = loadOp(xi->operands[1], irb, true);
 
-	auto* it1 = getIntegerTypeFromByteSize(xi->operands[1].size);
+	auto* it1 = getIntegerTypeFromByteSize(_module, xi->operands[1].size);
 	auto* pt1 = llvm::PointerType::get(it1, 0);
 	auto* addr1 = irb.CreateIntToPtr(op1, pt1);
 	auto* l1 = irb.CreateLoad(addr1);
@@ -2937,7 +2937,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translatePop(cs_insn* i, cs_x86* xi, llv
 	assert(xi->op_count == 1);
 	auto* sp = loadRegister(getStackPointerRegister(), irb);
 
-	auto* it = getIntegerTypeFromByteSize(xi->operands[0].size);
+	auto* it = getIntegerTypeFromByteSize(_module, xi->operands[0].size);
 	auto* pt = llvm::PointerType::get(it, 0);
 	auto* addr = irb.CreateIntToPtr(sp, pt);
 	auto* l = irb.CreateLoad(addr);
@@ -2955,7 +2955,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translatePopa(cs_insn* i, cs_x86* xi, ll
 {
 	assert(xi->op_count == 0);
 	auto* sp = loadRegister(getStackPointerRegister(), irb);
-	auto* t = getIntegerTypeFromByteSize(xi->addr_size);
+	auto* t = getIntegerTypeFromByteSize(_module, xi->addr_size);
 	auto* pt = llvm::PointerType::get(t, 0);
 	auto* c = llvm::ConstantInt::get(sp->getType(), xi->addr_size);
 
@@ -3013,7 +3013,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translatePopEflags(cs_insn* i, cs_x86* x
 {
 	assert(xi->op_count == 0);
 	auto* sp = loadRegister(getStackPointerRegister(), irb);
-	auto* it = getIntegerTypeFromByteSize(xi->addr_size);
+	auto* it = getIntegerTypeFromByteSize(_module, xi->addr_size);
 	auto* pt = llvm::PointerType::get(it, 0);
 	auto* addr = irb.CreateIntToPtr(sp, pt);
 	auto* l = irb.CreateLoad(addr);
@@ -3095,7 +3095,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translatePusha(cs_insn* i, cs_x86* xi, l
 {
 	assert(xi->op_count == 0);
 	auto* sp = loadRegister(getStackPointerRegister(), irb);
-	llvm::Type* t = nullptr; // getIntegerTypeFromByteSize(xi->addr_size);
+	llvm::Type* t = nullptr; // getIntegerTypeFromByteSize(_module, xi->addr_size);
 	std::size_t bsz = 0;
 	if (i->id == X86_INS_PUSHAL)
 	{
@@ -3154,7 +3154,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translatePusha(cs_insn* i, cs_x86* xi, l
 void Capstone2LlvmIrTranslatorX86_impl::translatePushEflags(cs_insn* i, cs_x86* xi, llvm::IRBuilder<>& irb)
 {
 	assert(xi->op_count == 0);
-	auto* it = getIntegerTypeFromByteSize(xi->addr_size);
+	auto* it = getIntegerTypeFromByteSize(_module, xi->addr_size);
 
 	auto* cf = irb.CreateZExt(loadRegister(X86_REG_CF, irb), it);
 	// reserved
@@ -3237,7 +3237,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateRet(cs_insn* i, cs_x86* xi, llv
 		op0 = loadOpUnary(xi, irb);
 	}
 
-	auto* it = getIntegerTypeFromByteSize(sz);
+	auto* it = getIntegerTypeFromByteSize(_module, sz);
 	auto* pt = llvm::PointerType::get(it, 0);
 	auto* addr = irb.CreateIntToPtr(sp, pt);
 	auto* l = irb.CreateLoad(addr);
@@ -4866,7 +4866,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateFist(cs_insn* i, cs_x86* xi, ll
 
 	auto* topNum = loadX87Top(irb);
 	auto* top = loadX87DataReg(irb, topNum);
-	auto* t = getIntegerTypeFromByteSize(xi->operands[0].size);
+	auto* t = getIntegerTypeFromByteSize(_module, xi->operands[0].size);
 	auto* fptosi = irb.CreateFPToSI(top, t);
 	setOp(xi->operands[0], fptosi, irb);
 

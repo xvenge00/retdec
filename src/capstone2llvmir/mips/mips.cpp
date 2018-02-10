@@ -1455,7 +1455,7 @@ void Capstone2LlvmIrTranslatorMips_impl::translateExt(cs_insn* i, cs_mips* mi, l
 			&& (llvm::cast<llvm::ConstantInt>(op3)->getZExtValue() + 1)
 				== op1Ty->getBitWidth())
 	{
-		auto* fTy = getFloatTypeFromByteSize(op1Ty->getBitWidth() / 8);
+		auto* fTy = getFloatTypeFromByteSize(_module, op1Ty->getBitWidth() / 8);
 		auto* f = llvm::Intrinsic::getDeclaration(
 				_module,
 				llvm::Intrinsic::fabs,
