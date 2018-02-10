@@ -1,6 +1,6 @@
 /**
  * @file include/retdec/capstone2llvmir/mips/mips.h
- * @brief MIPS implementation of @c Capstone2LlvmIrTranslator.
+ * @brief MIPS specialization of translator's abstract public interface.
  * @copyright (c) 2017 Avast Software, licensed under the MIT license
  */
 
@@ -13,6 +13,9 @@
 namespace retdec {
 namespace capstone2llvmir {
 
+/**
+ * MIPS specialization of translator's abstract public interface.
+ */
 class Capstone2LlvmIrTranslatorMips : virtual public Capstone2LlvmIrTranslator
 {
 	public:

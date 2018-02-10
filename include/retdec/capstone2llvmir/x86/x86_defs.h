@@ -1,6 +1,6 @@
 /**
  * @file include/retdec/capstone2llvmir/x86/x86_defs.h
- * @brief Definitions for X86 implementation of @c Capstone2LlvmIrTranslator.
+ * @brief Additional (on top of Capstone) definitions for x86 translator.
  * @copyright (c) 2017 Avast Software, licensed under the MIT license
  */
 

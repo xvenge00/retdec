@@ -1,6 +1,6 @@
 /**
  * @file include/retdec/capstone2llvmir/powerpc/powerpc_defs.h
- * @brief Definitions for PowerPC implementation of @c Capstone2LlvmIrTranslator.
+ * @brief Additional (on top of Capstone) definitions for PowerPC translator.
  * @copyright (c) 2017 Avast Software, licensed under the MIT license
  */
 

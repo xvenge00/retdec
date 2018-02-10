@@ -1,6 +1,6 @@
 /**
  * @file include/retdec/capstone2llvmir/arm/arm.h
- * @brief ARM implementation of @c Capstone2LlvmIrTranslator.
+ * @brief ARM specialization of translator's abstract public interface.
  * @copyright (c) 2017 Avast Software, licensed under the MIT license
  */
 
@@ -13,6 +13,9 @@
 namespace retdec {
 namespace capstone2llvmir {
 
+/**
+ * ARM specialization of translator's abstract public interface.
+ */
 class Capstone2LlvmIrTranslatorArm : virtual public Capstone2LlvmIrTranslator
 {
 	public:

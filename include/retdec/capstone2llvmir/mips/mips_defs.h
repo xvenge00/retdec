@@ -1,6 +1,6 @@
 /**
  * @file include/retdec/capstone2llvmir/mips/mips_defs.h
- * @brief Definitions for MIPS implementation of @c Capstone2LlvmIrTranslator.
+ * @brief Additional (on top of Capstone) definitions for MIPS translator.
  * @copyright (c) 2017 Avast Software, licensed under the MIT license
  */
 

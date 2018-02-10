@@ -41,7 +41,6 @@ class Capstone2LlvmIrTranslatorX86_impl :
 		virtual llvm::Function* getX87TagStoreFunction() override;
 		virtual llvm::Function* getX87DataLoadFunction() override;
 		virtual llvm::Function* getX87TagLoadFunction() override;
-		virtual uint32_t getParentRegister(uint32_t r) override;
 
 	// Protected pure virtual methods that must be implemented in concrete
 	// classes.
@@ -108,6 +107,7 @@ class Capstone2LlvmIrTranslatorX86_impl :
 	protected:
 		llvm::Type* getDefaultType();
 
+		uint32_t getParentRegister(uint32_t r);
 		llvm::Value* loadRegister(
 				uint32_t r,
 				llvm::IRBuilder<>& irb,

@@ -23,15 +23,6 @@ namespace capstone2llvmir {
 //==============================================================================
 //
 
-/**
- * Create translator for the specified architecture @p a, module @p m,
- * architecture basic HW mode @p basicMode corresponding to HW architectures
- * (e.g. CS_MODE_ARM or CS_MODE_THUMB for CS_ARCH_ARM), and extra mode
- * @p extraMode that can be combined with basic HW mode
- * (e.g. CS_MODE_BIG_ENDIAN).
- * @return Unique pointer to created translator, or @c nullptr if translator
- * (with the specified modes) could not be created.
- */
 std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createArch(
 		cs_arch a,
 		llvm::Module* m,
@@ -93,15 +84,6 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createArch
 	throw Capstone2LlvmIrError("Unhandled Capstone architecture or mode.");
 }
 
-/**
- * Create 32-bit ARM translator with basic mode @c CS_MODE_ARM, and extra
- * mode @c extra.
- * This is meant to be used when ARM needs to be used with extra mode
- * like @c CS_MODE_BIG_ENDIAN. If you want to create THUMB translator use
- * @c createThumb().
- * @return Unique pointer to created translator, or @c nullptr if translator
- * (with the specified mode) could not be created.
- */
 std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createArm(
 		llvm::Module* m,
 		cs_mode extra)
@@ -109,15 +91,6 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createArm(
 	return std::make_unique<Capstone2LlvmIrTranslatorArm_impl>(m, CS_MODE_ARM, extra);
 }
 
-/**
- * Create 32-bit ARM translator with basic mode @c CS_MODE_THUMB, and extra
- * mode @c extra.
- * This is meant to be used when THUMB needs to be used with extra mode
- * like @c CS_MODE_BIG_ENDIAN. If you want to create ARM translator use
- * @c createArm().
- * @return Unique pointer to created translator, or @c nullptr if translator
- * (with the specified mode) could not be created.
- */
 std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createThumb(
 		llvm::Module* m,
 		cs_mode extra)
@@ -125,14 +98,6 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createThum
 	return std::make_unique<Capstone2LlvmIrTranslatorArm_impl>(m, CS_MODE_THUMB, extra);
 }
 
-/**
- * Create 64-bit ARM translator with basic mode @c CS_MODE_ARM, and extra
- * mode @c extra.
- * This is meant to be used when 64-bit ARM needs to be used with extra mode
- * like @c CS_MODE_BIG_ENDIAN.
- * @return Unique pointer to created translator, or @c nullptr if translator
- * (with the specified mode) could not be created.
- */
 std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createArm64(
 		llvm::Module* m,
 		cs_mode extra)
@@ -141,15 +106,6 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createArm6
 	return nullptr;
 }
 
-/**
- * Create MIPS translator with basic mode @c CS_MODE_MIPS32, and extra
- * mode @c extra.
- * This is meant to be used when MIPS needs to be used with extra mode
- * like @c CS_MODE_BIG_ENDIAN. If you want to create a different flavour of MIPS
- * translator use @c createMips64(), @c createMips3(), or @c createMips32R6().
- * @return Unique pointer to created translator, or @c nullptr if translator
- * (with the specified mode) could not be created.
- */
 std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createMips32(
 		llvm::Module* m,
 		cs_mode extra)
@@ -157,15 +113,6 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createMips
 	return std::make_unique<Capstone2LlvmIrTranslatorMips_impl>(m, CS_MODE_MIPS32, extra);
 }
 
-/**
- * Create MIPS translator with basic mode @c CS_MODE_MIPS64, and extra
- * mode @c extra.
- * This is meant to be used when MIPS needs to be used with extra mode
- * like @c CS_MODE_BIG_ENDIAN. If you want to create a different flavour of MIPS
- * translator use @c createMips32(), @c createMips3(), or @c createMips32R6().
- * @return Unique pointer to created translator, or @c nullptr if translator
- * (with the specified mode) could not be created.
- */
 std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createMips64(
 		llvm::Module* m,
 		cs_mode extra)
@@ -173,15 +120,6 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createMips
 	return std::make_unique<Capstone2LlvmIrTranslatorMips_impl>(m, CS_MODE_MIPS64, extra);
 }
 
-/**
- * Create MIPS translator with basic mode @c CS_MODE_MIPS3, and extra
- * mode @c extra.
- * This is meant to be used when MIPS needs to be used with extra mode
- * like @c CS_MODE_BIG_ENDIAN. If you want to create a different flavour of MIPS
- * translator use @c createMips32(), @c createMips64(), or @c createMips32R6().
- * @return Unique pointer to created translator, or @c nullptr if translator
- * (with the specified mode) could not be created.
- */
 std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createMips3(
 		llvm::Module* m,
 		cs_mode extra)
@@ -189,15 +127,6 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createMips
 	return std::make_unique<Capstone2LlvmIrTranslatorMips_impl>(m, CS_MODE_MIPS3, extra);
 }
 
-/**
- * Create MIPS translator with basic mode @c CS_MODE_MIPS32R6, and extra
- * mode @c extra.
- * This is meant to be used when MIPS needs to be used with extra mode
- * like @c CS_MODE_BIG_ENDIAN. If you want to create a different flavour of MIPS
- * translator use @c createMips32(), @c createMips64(), or @c createMips3().
- * @return Unique pointer to created translator, or @c nullptr if translator
- * (with the specified mode) could not be created.
- */
 std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createMips32R6(
 		llvm::Module* m,
 		cs_mode extra)
@@ -205,14 +134,6 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createMips
 	return std::make_unique<Capstone2LlvmIrTranslatorMips_impl>(m, CS_MODE_MIPS32R6, extra);
 }
 
-/**
- * Create x86 translator with basic mode @c CS_MODE_16, and extra mode @c extra.
- * This is meant to be used when x86 needs to be used with extra mode
- * like @c CS_MODE_BIG_ENDIAN. If you want to create a different flavour of x86
- * translator use @c createX86_32() or @c createX86_64().
- * @return Unique pointer to created translator, or @c nullptr if translator
- * (with the specified mode) could not be created.
- */
 std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createX86_16(
 		llvm::Module* m,
 		cs_mode extra)
@@ -220,14 +141,6 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createX86_
 	return std::make_unique<Capstone2LlvmIrTranslatorX86_impl>(m, CS_MODE_16, extra);
 }
 
-/**
- * Create x86 translator with basic mode @c CS_MODE_32, and extra mode @c extra.
- * This is meant to be used when x86 needs to be used with extra mode
- * like @c CS_MODE_BIG_ENDIAN. If you want to create a different flavour of x86
- * translator use @c createX86_16() or @c createX86_64().
- * @return Unique pointer to created translator, or @c nullptr if translator
- * (with the specified mode) could not be created.
- */
 std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createX86_32(
 		llvm::Module* m,
 		cs_mode extra)
@@ -235,16 +148,6 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createX86_
 	return std::make_unique<Capstone2LlvmIrTranslatorX86_impl>(m, CS_MODE_32, extra);
 }
 
-/**
- * Create x86 translator with basic mode @c CS_MODE_64, and extra mode @c extra.
- * This is meant to be used when x86 needs to be used with extra mode
- * like @c CS_MODE_BIG_ENDIAN. If you want to create a different flavour of x86
- * translator use @c createX86_16() or @c createX86_32().
- * @return Unique pointer to created translator, or @c nullptr if translator
- * (with the specified mode) could not be created.
- * @return Unique pointer to created translator, or @c nullptr if translator
- * (with the specified mode) could not be created.
- */
 std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createX86_64(
 		llvm::Module* m,
 		cs_mode extra)
@@ -252,15 +155,6 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createX86_
 	return std::make_unique<Capstone2LlvmIrTranslatorX86_impl>(m, CS_MODE_64, extra);
 }
 
-/**
- * Create 32-bit PowerPC translator with basic mode @c CS_MODE_32, and extra
- * mode @c extra.
- * This is meant to be used when PowerPC needs to be used with extra mode
- * like @c CS_MODE_BIG_ENDIAN. If you want to create 64-bit PowerPC translator
- * use @c createPpc64().
- * @return Unique pointer to created translator, or @c nullptr if translator
- * (with the specified mode) could not be created.
- */
 std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createPpc32(
 		llvm::Module* m,
 		cs_mode extra)
@@ -268,15 +162,6 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createPpc3
 	return std::make_unique<Capstone2LlvmIrTranslatorPowerpc_impl>(m, CS_MODE_32, extra);
 }
 
-/**
- * Create 64-bit PowerPC translator with basic mode @c CS_MODE_64, and extra
- * mode @c extra.
- * This is meant to be used when PowerPC needs to be used with extra mode
- * like @c CS_MODE_BIG_ENDIAN. If you want to create 32-bit PowerPC translator
- * use @c createPpc32().
- * @return Unique pointer to created translator, or @c nullptr if translator
- * (with the specified mode) could not be created.
- */
 std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createPpc64(
 		llvm::Module* m,
 		cs_mode extra)
@@ -284,15 +169,6 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createPpc6
 	return std::make_unique<Capstone2LlvmIrTranslatorPowerpc_impl>(m, CS_MODE_64, extra);
 }
 
-/**
- * Create QPX PowerPC translator with basic mode @c CS_MODE_QPX, and extra
- * mode @c extra.
- * This is meant to be used when PowerPC needs to be used with extra mode
- * like @c CS_MODE_BIG_ENDIAN. If you want to create 32-bit PowerPC translator
- * use @c createPpc32().
- * @return Unique pointer to created translator, or @c nullptr if translator
- * (with the specified mode) could not be created.
- */
 std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createPpcQpx(
 		llvm::Module* m,
 		cs_mode extra)
@@ -300,13 +176,6 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createPpcQ
 	return std::make_unique<Capstone2LlvmIrTranslatorPowerpc_impl>(m, CS_MODE_QPX, extra);
 }
 
-/**
- * Create SPARC translator with extra mode @c extra.
- * This is meant to be used when SPARC needs to be used with extra mode
- * like @c CS_MODE_BIG_ENDIAN.
- * @return Unique pointer to created translator, or @c nullptr if translator
- * (with the specified mode) could not be created.
- */
 std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createSparc(
 		llvm::Module* m,
 		cs_mode extra)
@@ -315,13 +184,6 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createSpar
 	return nullptr;
 }
 
-/**
- * Create SystemZ translator with extra mode @c extra.
- * This is meant to be used when SystemZ needs to be used with extra mode
- * like @c CS_MODE_BIG_ENDIAN.
- * @return Unique pointer to created translator, or @c nullptr if translator
- * (with the specified mode) could not be created.
- */
 std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createSysz(
 		llvm::Module* m,
 		cs_mode extra)
@@ -330,13 +192,6 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createSysz
 	return nullptr;
 }
 
-/**
- * Create XCore translator with extra mode @c extra.
- * This is meant to be used when XCore needs to be used with extra mode
- * like @c CS_MODE_BIG_ENDIAN.
- * @return Unique pointer to created translator, or @c nullptr if translator
- * (with the specified mode) could not be created.
- */
 std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createXcore(
 		llvm::Module* m,
 		cs_mode extra)
@@ -637,33 +492,21 @@ bool Capstone2LlvmIrTranslator_impl::isCondBranchFunctionCall(llvm::CallInst* c)
 	return c ? isCondBranchFunction(c->getCalledFunction()) : false;
 }
 
-/**
- * @return Handle to the underlying Capstone engine.
- */
 const csh& Capstone2LlvmIrTranslator_impl::getCapstoneEngine() const
 {
 	return _handle;
 }
 
-/**
- * @return Capstone architecture this translator was initialized with.
- */
 cs_arch Capstone2LlvmIrTranslator_impl::getArchitecture() const
 {
 	return _arch;
 }
 
-/**
- * @return Capstone basic mode this translator was initialized with.
- */
 cs_mode Capstone2LlvmIrTranslator_impl::getBasicMode() const
 {
 	return _basicMode;
 }
 
-/**
- * @return Capstone extra mode this translator was initialized with.
- */
 cs_mode Capstone2LlvmIrTranslator_impl::getExtraMode() const
 {
 	return _extraMode;
@@ -819,9 +662,6 @@ uint32_t Capstone2LlvmIrTranslator_impl::getCapstoneRegister(llvm::GlobalVariabl
 	return it != _allLlvmRegs.end() ? it->second : 0;
 }
 
-/**
- *
- */
 Capstone2LlvmIrTranslator_impl::TranslationResult Capstone2LlvmIrTranslator_impl::translate(
 		const std::vector<uint8_t>& bytes,
 		retdec::utils::Address a,

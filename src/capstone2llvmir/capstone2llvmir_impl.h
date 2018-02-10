@@ -56,8 +56,6 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 		virtual bool isCondBranchFunctionCall(llvm::CallInst* c) const override;
 		virtual llvm::Function* getCondBranchFunction() const override;
 
-		virtual llvm::Function* getAsmFunction(const std::string& name) const override;
-
 		virtual llvm::GlobalVariable* isRegister(llvm::Value* v) const override;
 		virtual uint32_t getCapstoneRegister(llvm::GlobalVariable* gv) const override;
 		virtual llvm::GlobalVariable* getRegister(uint32_t r) override;
@@ -233,6 +231,7 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 				bool reverse = false);
 
 	protected:
+		llvm::Function* getAsmFunction(const std::string& name) const;
 		llvm::Function* getOrCreateAsmFunction(
 				std::size_t insnId,
 				const std::string& name,

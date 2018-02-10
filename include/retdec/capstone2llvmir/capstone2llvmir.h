@@ -1,7 +1,6 @@
 /**
  * @file include/retdec/capstone2llvmir/capstone2llvmir.h
- * @brief Converts bytes to Capstone representation, and Capstone representation
- *        to LLVM IR.
+ * @brief Common public interface for translators converting bytes to LLVM IR.
  * @copyright (c) 2017 Avast Software, licensed under the MIT license
  */
 
@@ -25,143 +24,231 @@ namespace retdec {
 namespace capstone2llvmir {
 
 /**
- * This is an abstract Capstone 2 LLVM IR translator class.
- * It can be used to create instances of concrete classes.
- * It should also be possible to create concreate classes on their own (they
- * should have public constructors), so that it is not  neccessary to modify
- * this class when adding new translators.
+ * Abstract public interface class for all translators.
+ *
+ * Translator accepts binary data and position in LLVM module, disassembles
+ * the data into Capstone instruction(s), and translates these instruction(s)
+ * to LLVM IR instructions located at the given position.
  */
 class Capstone2LlvmIrTranslator
 {
-	// Named constructors.
-	//
+//
+//==============================================================================
+// Named constructors.
+//==============================================================================
+//
 	public:
+		/**
+		 * Create translator for the specified architecture @p a, module @p m,
+		 * architecture basic HW mode @p basicMode corresponding to HW
+		 * architectures (e.g. CS_MODE_ARM or CS_MODE_THUMB for CS_ARCH_ARM),
+		 * and extra mode @p extraMode that can be combined with basic HW mode
+		 * (e.g. CS_MODE_BIG_ENDIAN).
+		 * @return Unique pointer to created translator, or @c nullptr if
+		 * translator (with the specified modes) could not be created.
+		 */
 		static std::unique_ptr<Capstone2LlvmIrTranslator> createArch(
 				cs_arch a,
 				llvm::Module* m,
 				cs_mode basic = CS_MODE_LITTLE_ENDIAN,
 				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
+		/**
+		 * Create 32-bit ARM translator with basic mode @c CS_MODE_ARM,
+		 * and extra mode @c extra.
+		 * This is meant to be used when ARM needs to be used with extra mode
+		 * like @c CS_MODE_BIG_ENDIAN. If you want to create THUMB translator
+		 * use @c createThumb().
+		 * @return Unique pointer to created translator, or @c nullptr if
+		 * translator (with the specified mode) could not be created.
+		 */
 		static std::unique_ptr<Capstone2LlvmIrTranslator> createArm(
 				llvm::Module* m,
 				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
+		/**
+		 * Create 32-bit ARM translator with basic mode @c CS_MODE_THUMB,
+		 * and extra mode @c extra.
+		 * This is meant to be used when THUMB needs to be used with extra mode
+		 * like @c CS_MODE_BIG_ENDIAN. If you want to create ARM translator use
+		 * @c createArm().
+		 * @return Unique pointer to created translator, or @c nullptr if
+		 * translator (with the specified mode) could not be created.
+		 */
 		static std::unique_ptr<Capstone2LlvmIrTranslator> createThumb(
 				llvm::Module* m,
 				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
+		/**
+		 * Create 64-bit ARM translator with basic mode @c CS_MODE_ARM,
+		 * and extra mode @c extra.
+		 * This is meant to be used when 64-bit ARM needs to be used with
+		 * extra mode like @c CS_MODE_BIG_ENDIAN.
+		 * @return Unique pointer to created translator, or @c nullptr if
+		 * translator (with the specified mode) could not be created.
+		 */
 		static std::unique_ptr<Capstone2LlvmIrTranslator> createArm64(
 				llvm::Module* m,
 				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
+		/**
+		 * Create MIPS translator with basic mode @c CS_MODE_MIPS32, and extra
+		 * mode @c extra.
+		 * This is meant to be used when MIPS needs to be used with extra mode
+		 * like @c CS_MODE_BIG_ENDIAN. If you want to create a different flavour
+		 * of MIPS translator use @c createMips64(), @c createMips3(), or
+		 * @c createMips32R6().
+		 * @return Unique pointer to created translator, or @c nullptr if
+		 * translator (with the specified mode) could not be created.
+		 */
 		static std::unique_ptr<Capstone2LlvmIrTranslator> createMips32(
 				llvm::Module* m,
 				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
+		/**
+		 * Create MIPS translator with basic mode @c CS_MODE_MIPS64, and extra
+		 * mode @c extra.
+		 * This is meant to be used when MIPS needs to be used with extra mode
+		 * like @c CS_MODE_BIG_ENDIAN. If you want to create a different flavour
+		 * of MIPS translator use @c createMips32(), @c createMips3(), or
+		 * @c createMips32R6().
+		 * @return Unique pointer to created translator, or @c nullptr if
+		 * translator (with the specified mode) could not be created.
+		 */
 		static std::unique_ptr<Capstone2LlvmIrTranslator> createMips64(
 				llvm::Module* m,
 				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
+		/**
+		 * Create MIPS translator with basic mode @c CS_MODE_MIPS3, and extra
+		 * mode @c extra.
+		 * This is meant to be used when MIPS needs to be used with extra mode
+		 * like @c CS_MODE_BIG_ENDIAN. If you want to create a different flavour
+		 * of MIPS translator use @c createMips32(), @c createMips64(), or
+		 * @c createMips32R6().
+		 * @return Unique pointer to created translator, or @c nullptr if
+		 * translator (with the specified mode) could not be created.
+		 */
 		static std::unique_ptr<Capstone2LlvmIrTranslator> createMips3(
 				llvm::Module* m,
 				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
+		/**
+		 * Create MIPS translator with basic mode @c CS_MODE_MIPS32R6, and extra
+		 * mode @c extra.
+		 * This is meant to be used when MIPS needs to be used with extra mode
+		 * like @c CS_MODE_BIG_ENDIAN. If you want to create a different flavour
+		 * of MIPS translator use @c createMips32(), @c createMips64(),
+		 * or @c createMips3().
+		 * @return Unique pointer to created translator, or @c nullptr if
+		 * translator (with the specified mode) could not be created.
+		 */
 		static std::unique_ptr<Capstone2LlvmIrTranslator> createMips32R6(
 				llvm::Module* m,
 				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
+		/**
+		 * Create x86 translator with basic mode @c CS_MODE_16, and extra mode
+		 * @c extra.
+		 * This is meant to be used when x86 needs to be used with extra mode
+		 * like @c CS_MODE_BIG_ENDIAN. If you want to create a different flavour
+		 * of x86 translator use @c createX86_32() or @c createX86_64().
+		 * @return Unique pointer to created translator, or @c nullptr if
+		 * translator (with the specified mode) could not be created.
+		 */
 		static std::unique_ptr<Capstone2LlvmIrTranslator> createX86_16(
 				llvm::Module* m,
 				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
+		/**
+		 * Create x86 translator with basic mode @c CS_MODE_32, and extra mode
+		 * @c extra.
+		 * This is meant to be used when x86 needs to be used with extra mode
+		 * like @c CS_MODE_BIG_ENDIAN. If you want to create a different flavour
+		 * of x86 translator use @c createX86_16() or @c createX86_64().
+		 * @return Unique pointer to created translator, or @c nullptr if
+		 * translator (with the specified mode) could not be created.
+		 */
 		static std::unique_ptr<Capstone2LlvmIrTranslator> createX86_32(
 				llvm::Module* m,
 				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
+		/**
+		 * Create x86 translator with basic mode @c CS_MODE_64, and extra mode
+		 * @c extra.
+		 * This is meant to be used when x86 needs to be used with extra mode
+		 * like @c CS_MODE_BIG_ENDIAN. If you want to create a different flavour
+		 * of x86 translator use @c createX86_16() or @c createX86_32().
+		 * @return Unique pointer to created translator, or @c nullptr if
+		 * translator (with the specified mode) could not be created.
+		 */
 		static std::unique_ptr<Capstone2LlvmIrTranslator> createX86_64(
 				llvm::Module* m,
 				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
+		/**
+		 * Create 32-bit PowerPC translator with basic mode @c CS_MODE_32,
+		 * and extra mode @c extra.
+		 * This is meant to be used when PowerPC needs to be used with extra
+		 * mode like @c CS_MODE_BIG_ENDIAN. If you want to create 64-bit PowerPC
+		 * translator use @c createPpc64().
+		 * @return Unique pointer to created translator, or @c nullptr if
+		 * translator (with the specified mode) could not be created.
+		 */
 		static std::unique_ptr<Capstone2LlvmIrTranslator> createPpc32(
 				llvm::Module* m,
 				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
+		/**
+		 * Create 64-bit PowerPC translator with basic mode @c CS_MODE_64,
+		 * and extra mode @c extra.
+		 * This is meant to be used when PowerPC needs to be used with extra
+		 * mode like @c CS_MODE_BIG_ENDIAN. If you want to create 32-bit PowerPC
+		 * translator use @c createPpc32().
+		 * @return Unique pointer to created translator, or @c nullptr if
+		 * translator (with the specified mode) could not be created.
+		 */
 		static std::unique_ptr<Capstone2LlvmIrTranslator> createPpc64(
 				llvm::Module* m,
 				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
+		/**
+		 * Create QPX PowerPC translator with basic mode @c CS_MODE_QPX, and
+		 * extra mode @c extra.
+		 * This is meant to be used when PowerPC needs to be used with extra
+		 * mode like @c CS_MODE_BIG_ENDIAN. If you want to create 32-bit PowerPC
+		 * translator use @c createPpc32().
+		 * @return Unique pointer to created translator, or @c nullptr if
+		 * translator (with the specified mode) could not be created.
+		 */
 		static std::unique_ptr<Capstone2LlvmIrTranslator> createPpcQpx(
 				llvm::Module* m,
 				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
+		/**
+		 * Create SPARC translator with extra mode @c extra.
+		 * This is meant to be used when SPARC needs to be used with extra mode
+		 * like @c CS_MODE_BIG_ENDIAN.
+		 * @return Unique pointer to created translator, or @c nullptr if
+		 * translator (with the specified mode) could not be created.
+		 */
 		static std::unique_ptr<Capstone2LlvmIrTranslator> createSparc(
 				llvm::Module* m,
 				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
+		/**
+		 * Create SystemZ translator with extra mode @c extra.
+		 * This is meant to be used when SystemZ needs to be used with extra
+		 * mode like @c CS_MODE_BIG_ENDIAN.
+		 * @return Unique pointer to created translator, or @c nullptr if
+		 * translator (with the specified mode) could not be created.
+		 */
 		static std::unique_ptr<Capstone2LlvmIrTranslator> createSysz(
 				llvm::Module* m,
 				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
+		/**
+		 * Create XCore translator with extra mode @c extra.
+		 * This is meant to be used when XCore needs to be used with extra mode
+		 * like @c CS_MODE_BIG_ENDIAN.
+		 * @return Unique pointer to created translator, or @c nullptr if
+		 * translator (with the specified mode) could not be created.
+		 */
 		static std::unique_ptr<Capstone2LlvmIrTranslator> createXcore(
 				llvm::Module* m,
 				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
 
 		virtual ~Capstone2LlvmIrTranslator();
 
-	// Capstone related getters.
-	//
-	public:
-		virtual const csh& getCapstoneEngine() const = 0;
-		virtual cs_arch getArchitecture() const = 0;
-		virtual cs_mode getBasicMode() const = 0;
-		virtual cs_mode getExtraMode() const = 0;
-
-		virtual bool hasDelaySlot(uint32_t id) const = 0;
-		virtual bool hasDelaySlotTypical(uint32_t id) const = 0;
-		virtual bool hasDelaySlotLikely(uint32_t id) const = 0;
-		virtual std::size_t getDelaySlot(uint32_t id) const = 0;
-
-	// LLVM related getters and query methods.
-	//
-	public:
-		virtual llvm::Module* getModule() const = 0;
-
-		virtual bool isSpecialAsm2LlvmMapGlobal(llvm::Value* v) const = 0;
-		virtual llvm::StoreInst* isSpecialAsm2LlvmInstr(llvm::Value* v) const = 0;
-		virtual llvm::GlobalVariable* getAsm2LlvmMapGlobalVariable() const = 0;
-
-		virtual bool isCallFunction(llvm::Function* f) const = 0;
-		virtual bool isCallFunctionCall(llvm::CallInst* c) const = 0;
-		virtual llvm::Function* getCallFunction() const = 0;
-
-		virtual bool isReturnFunction(llvm::Function* f) const = 0;
-		virtual bool isReturnFunctionCall(llvm::CallInst* c) const = 0;
-		virtual llvm::Function* getReturnFunction() const = 0;
-
-		virtual bool isBranchFunction(llvm::Function* f) const = 0;
-		virtual bool isBranchFunctionCall(llvm::CallInst* c) const = 0;
-		virtual llvm::Function* getBranchFunction() const = 0;
-
-		virtual bool isCondBranchFunction(llvm::Function* f) const = 0;
-		virtual bool isCondBranchFunctionCall(llvm::CallInst* c) const = 0;
-		virtual llvm::Function* getCondBranchFunction() const = 0;
-
-		virtual llvm::Function* getAsmFunction(const std::string& name) const = 0;
-
-		virtual llvm::GlobalVariable* isRegister(llvm::Value* v) const = 0;
-		virtual uint32_t getCapstoneRegister(llvm::GlobalVariable* gv) const = 0;
-		virtual llvm::GlobalVariable* getRegister(uint32_t r) = 0;
-		virtual std::string getRegisterName(uint32_t r) const = 0;
-		virtual uint32_t getRegisterBitSize(uint32_t r) const = 0;
-		virtual uint32_t getRegisterByteSize(uint32_t r) const = 0;
-		virtual llvm::Type* getRegisterType(uint32_t r) const = 0;
-
-	// Translation methods.
-	//
-	public:
-		struct TranslationResult
-		{
-			llvm::StoreInst* first = nullptr;
-			llvm::StoreInst* last = nullptr;
-			std::size_t size = 0;
-			/// This is any branch type. i.e. call, return, branch, cond branch.
-			llvm::CallInst* branchCall = nullptr;
-			bool inCondition = false;
-			bool failed() const { return size == 0; }
-		};
-
-		virtual TranslationResult translate(
-				const std::vector<uint8_t>& bytes,
-				retdec::utils::Address a,
-				llvm::IRBuilder<>& irb,
-				bool stopOnBranch = false) = 0;
-
-	// Public pure virtual methods that must be implemented in concrete classes.
-	//
+//
+//==============================================================================
+// Mode query & modification methods.
+//==============================================================================
+//
 	public:
 		/**
 		 * Check if mode @c m is an allowed basic mode for the translator.
@@ -195,8 +282,240 @@ class Capstone2LlvmIrTranslator
 		 */
 		virtual void modifyExtraMode(cs_mode m) = 0;
 
+		/**
+		 * @return Architecture byte size according to the currently set basic
+		 * mode.
+		 */
 		virtual uint32_t getArchByteSize() = 0;
+		/**
+		 * @return Architecture bit size according to the currently set basic
+		 * mode.
+		 */
 		virtual uint32_t getArchBitSize() = 0;
+
+//
+//==============================================================================
+// Translation methods.
+//==============================================================================
+//
+	public:
+		struct TranslationResult
+		{
+			llvm::StoreInst* first = nullptr;
+			llvm::StoreInst* last = nullptr;
+			std::size_t size = 0;
+			/// This is any branch type. i.e. call, return, branch, cond branch.
+			llvm::CallInst* branchCall = nullptr;
+			bool inCondition = false;
+			bool failed() const { return size == 0; }
+		};
+
+		/**
+		 * Translate @p bytes from address @p a to LLVM IR instructions located
+		 * at position of LLVM IR builder @p irb. If @p stopOnBranch is set,
+		 * translation aborts after any kind of branch (call, return, branch,
+		 * conditional branch) is translated.
+		 */
+		virtual TranslationResult translate(
+				const std::vector<uint8_t>& bytes,
+				retdec::utils::Address a,
+				llvm::IRBuilder<>& irb,
+				bool stopOnBranch = false) = 0;
+
+//
+//==============================================================================
+// Capstone related getters.
+//==============================================================================
+//
+	public:
+		/**
+		 * @return Handle to the underlying Capstone engine.
+		 */
+		virtual const csh& getCapstoneEngine() const = 0;
+		/**
+		 * @return Capstone architecture this translator was initialized with.
+		 */
+		virtual cs_arch getArchitecture() const = 0;
+		/**
+		 * @return Capstone basic mode this translator is currently in.
+		 */
+		virtual cs_mode getBasicMode() const = 0;
+		/**
+		 * @return Capstone extra mode this translator is currently in.
+		 */
+		virtual cs_mode getExtraMode() const = 0;
+
+		/**
+		 * Has the specified Capstone instruction @p id any kind of delay slot?
+		 */
+		virtual bool hasDelaySlot(uint32_t id) const = 0;
+		/**
+		 * Has the specified Capstone instruction @p id typical delay slot?
+		 */
+		virtual bool hasDelaySlotTypical(uint32_t id) const = 0;
+		/**
+		 * Has the specified Capstone instruction @p id likely delay slot?
+		 */
+		virtual bool hasDelaySlotLikely(uint32_t id) const = 0;
+		/**
+		 * @return Size (number of instructions) of delay slot for the specified
+		 * Capstone instruction @p id.
+		 */
+		virtual std::size_t getDelaySlot(uint32_t id) const = 0;
+
+		/**
+		 * @return LLVM global variable corresponding to the specified Capstone
+		 * register @p r, or @c nullptr if such global does not exist.
+		 */
+		virtual llvm::GlobalVariable* getRegister(uint32_t r) = 0;
+		/**
+		 * @return Register name corresponding to the specified Capstone
+		 * register @p r. The name may differ from names used by the Capstone
+		 * library. This function works even for the additional registers
+		 * defined in translators and missing in Capstone (e.g. individual flag
+		 * registers).
+		 * Throws @c Capstone2LlvmIrError exception if register name not found.
+		 */
+		virtual std::string getRegisterName(uint32_t r) const = 0;
+		/**
+		 * @return Register bit size corresponding to the specified Capstone
+		 * register @p r. This function works even for the additional registers
+		 * defined in translators and missing in Capstone (e.g. individual flag
+		 * registers).
+		 * Throws @c Capstone2LlvmIrError exception if register bit size not
+		 * found.
+		 */
+		virtual uint32_t getRegisterBitSize(uint32_t r) const = 0;
+		/**
+		 * @return Register byte size corresponding to the specified Capstone
+		 * register @p r. This function works even for the additional registers
+		 * defined in translators and missing in Capstone (e.g. individual flag
+		 * registers).
+		 * Throws @c Capstone2LlvmIrError exception if register byte size not
+		 * found.
+		 */
+		virtual uint32_t getRegisterByteSize(uint32_t r) const = 0;
+		/**
+		 * @return Register data type corresponding to the specified Capstone
+		 * register @p r. This function works even for the additional registers
+		 * defined in translators and missing in Capstone (e.g. individual flag
+		 * registers).
+		 * Throws @c Capstone2LlvmIrError exception if register data type not
+		 * found.
+		 */
+		virtual llvm::Type* getRegisterType(uint32_t r) const = 0;
+//
+//==============================================================================
+// LLVM related getters and query methods.
+//==============================================================================
+//
+	public:
+		/**
+		 * @return LLVM module this translator works with.
+		 */
+		virtual llvm::Module* getModule() const = 0;
+
+		/**
+		 * Is the passed LLVM value @p v the special global variable used for
+		 * LLVM IR <-> Capstone instruction mapping?
+		 */
+		virtual bool isSpecialAsm2LlvmMapGlobal(llvm::Value* v) const = 0;
+		/**
+		 * Is the passed LLVM value @p v a special instruction used for
+		 * LLVM IR <-> Capstone instruction mapping?
+		 * @return Value @p v casted to @c llvm::StoreInst if it is a special
+		 * mapping instruction, @c nullptr otherwise.
+		 */
+		virtual llvm::StoreInst* isSpecialAsm2LlvmInstr(llvm::Value* v) const = 0;
+		/**
+		 * @return LLVM global variable used for LLVM IR <-> Capstone
+		 * instruction mapping?
+		 */
+		virtual llvm::GlobalVariable* getAsm2LlvmMapGlobalVariable() const = 0;
+
+		/**
+		 * Is the passed LLVM function @p f the special pseudo function
+		 * whose call represents call operation in the translated LLVM IR?
+		 */
+		virtual bool isCallFunction(llvm::Function* f) const = 0;
+		/**
+		 * Is the passed LLVM call instruction @p c a special pseudo call
+		 * instruction representing a call operation in the translated LLVM IR?
+		 */
+		virtual bool isCallFunctionCall(llvm::CallInst* c) const = 0;
+		/**
+		 * @return LLVM function used as special pseudo function whose call
+		 * represents a call operation in the translated LLVM IR.
+		 * Function signature: @code{.cpp} void (i<arch_sz>) @endcode
+		 */
+		virtual llvm::Function* getCallFunction() const = 0;
+		/**
+		 * Is the passed LLVM function @p f the special pseudo function
+		 * whose call represents return operation in the translated LLVM IR?
+		 */
+		virtual bool isReturnFunction(llvm::Function* f) const = 0;
+		/**
+		 * Is the passed LLVM call instruction @p c a special pseudo call
+		 * instruction representing a return operation in the translated
+		 * LLVM IR?
+		 */
+		virtual bool isReturnFunctionCall(llvm::CallInst* c) const = 0;
+		/**
+		 * @return LLVM function used as special pseudo function whose call
+		 * represents a return operation in the translated LLVM IR.
+		 * Function signature: @code{.cpp} void (i<arch_sz>) @endcode
+		 */
+		virtual llvm::Function* getReturnFunction() const = 0;
+		/**
+		 * Is the passed LLVM function @p f the special pseudo function
+		 * whose call represents branch operation in the translated LLVM IR?
+		 */
+		virtual bool isBranchFunction(llvm::Function* f) const = 0;
+		/**
+		 * Is the passed LLVM call instruction @p c a special pseudo call
+		 * instruction representing a branch operation in the translated
+		 * LLVM IR?
+		 */
+		virtual bool isBranchFunctionCall(llvm::CallInst* c) const = 0;
+		/**
+		 * @return LLVM function used as special pseudo function whose call
+		 * represents a branch operation in the translated LLVM IR.
+		 * Function signature: @code{.cpp} void (i<arch_sz>) @endcode
+		 */
+		virtual llvm::Function* getBranchFunction() const = 0;
+		/**
+		 * Is the passed LLVM function @p f the special pseudo function
+		 * whose call represents conditional branch operation in the translated
+		 * LLVM IR?
+		 * Function signature: @code{.cpp} void (i1, i<arch_sz>) @endcode
+		 */
+		virtual bool isCondBranchFunction(llvm::Function* f) const = 0;
+		/**
+		 * Is the passed LLVM call instruction @p c a special pseudo call
+		 * instruction representing a conditional branch operation in the
+		 * translated LLVM IR?
+		 */
+		virtual bool isCondBranchFunctionCall(llvm::CallInst* c) const = 0;
+		/**
+		 * @return LLVM function used as special pseudo function whose call
+		 * represents a conditional branch operation in the translated LLVM IR.
+		 */
+		virtual llvm::Function* getCondBranchFunction() const = 0;
+
+		/**
+		 * Is the passed LLVM value @p v a global variable representing some
+		 * HW register?
+		 * @return Value @p v casted to @c llvm::GlobalVariable if it is
+		 * representing some HW register, @c nullptr otherwise.
+		 */
+		virtual llvm::GlobalVariable* isRegister(llvm::Value* v) const = 0;
+		/**
+		 * @return Capstone register corresponding to the provided LLVM global
+		 * variable @p gv if such register exists, zero otherwise (zero equals
+		 * to @c <arch>_REG_INVALID in all Capstone architecture models, e.g.
+		 * @c ARM_REG_INVALID, @c MIPS_REG_INVALID).
+		 */
+		virtual uint32_t getCapstoneRegister(llvm::GlobalVariable* gv) const = 0;
 };
 
 } // namespace capstone2llvmir

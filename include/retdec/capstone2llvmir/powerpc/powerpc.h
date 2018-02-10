@@ -1,6 +1,6 @@
 /**
  * @file include/retdec/capstone2llvmir/powerpc/powerpc.h
- * @brief PowerPC implementation of @c Capstone2LlvmIrTranslator.
+ * @brief PowerPC specialization of translator's abstract public interface.
  * @copyright (c) 2017 Avast Software, licensed under the MIT license
  */
 
@@ -13,6 +13,9 @@
 namespace retdec {
 namespace capstone2llvmir {
 
+/**
+ * PowerPC specialization of translator's abstract public interface.
+ */
 class Capstone2LlvmIrTranslatorPowerpc : virtual public Capstone2LlvmIrTranslator
 {
 	public:
