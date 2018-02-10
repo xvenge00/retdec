@@ -38,7 +38,7 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 		virtual ~Capstone2LlvmIrTranslator_impl();
 //
 //==============================================================================
-// Mode query & modification methods.
+// Mode query & modification methods - from Capstone2LlvmIrTranslator.
 //==============================================================================
 //
 		// All of these are inherently architecture specific -> implemented

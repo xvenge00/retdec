@@ -17,17 +17,17 @@ class Capstone2LlvmIrTranslatorPowerpc_impl :
 		public Capstone2LlvmIrTranslator_impl,
 		public Capstone2LlvmIrTranslatorPowerpc
 {
-	// Constructor, destructor.
-	//
 	public:
 		Capstone2LlvmIrTranslatorPowerpc_impl(
 				llvm::Module* m,
 				cs_mode basic = CS_MODE_32,
 				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
 		virtual ~Capstone2LlvmIrTranslatorPowerpc_impl();
-
-	// Public pure virtual methods that must be implemented in concrete classes.
-	//
+//
+//==============================================================================
+// Mode query & modification methods - from Capstone2LlvmIrTranslator.
+//==============================================================================
+//
 	public:
 		virtual bool isAllowedBasicMode(cs_mode m) override;
 		virtual bool isAllowedExtraMode(cs_mode m) override;
@@ -35,10 +35,11 @@ class Capstone2LlvmIrTranslatorPowerpc_impl :
 		virtual void modifyExtraMode(cs_mode m) override;
 		virtual uint32_t getArchByteSize() override;
 		virtual uint32_t getArchBitSize() override;
-
-	// Protected pure virtual methods that must be implemented in concrete
-	// classes.
-	//
+//
+//==============================================================================
+// Pure virtual methods from Capstone2LlvmIrTranslator_impl
+//==============================================================================
+//
 	protected:
 		virtual void initializeArchSpecific() override;
 		virtual void initializeRegNameMap() override;
@@ -50,7 +51,11 @@ class Capstone2LlvmIrTranslatorPowerpc_impl :
 		virtual void translateInstruction(
 				cs_insn* i,
 				llvm::IRBuilder<>& irb) override;
-
+//
+//==============================================================================
+// PowerPC-specific methods.
+//==============================================================================
+//
 	protected:
 		llvm::IntegerType* getDefaultType();
 
@@ -133,11 +138,18 @@ class Capstone2LlvmIrTranslatorPowerpc_impl :
 		uint32_t crBitIndexToCrRegister(uint32_t idx);
 		bool isCrRegister(uint32_t r);
 		bool isCrRegister(cs_ppc_op& op);
-
+//
+//==============================================================================
+// PowerPC implementation data.
+//==============================================================================
+//
 	protected:
 		static std::map<
 			std::size_t,
-			void (Capstone2LlvmIrTranslatorPowerpc_impl::*)(cs_insn* i, cs_ppc*, llvm::IRBuilder<>&)> _i2fm;
+			void (Capstone2LlvmIrTranslatorPowerpc_impl::*)(
+					cs_insn* i,
+					cs_ppc*,
+					llvm::IRBuilder<>&)> _i2fm;
 
 		// These are used to save lines needed to declare locale operands in
 		// each translation function.
@@ -146,9 +158,11 @@ class Capstone2LlvmIrTranslatorPowerpc_impl :
 		llvm::Value* op0 = nullptr;
 		llvm::Value* op1 = nullptr;
 		llvm::Value* op2 = nullptr;
-
-	// Instruction translation methods.
-	//
+//
+//==============================================================================
+// PowerPC instruction translation methods.
+//==============================================================================
+//
 	protected:
 		void translateAdd(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb);
 		void translateAddc(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb);

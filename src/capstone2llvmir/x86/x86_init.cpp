@@ -9,6 +9,17 @@
 namespace retdec {
 namespace capstone2llvmir {
 
+//
+//==============================================================================
+// Pure virtual methods from Capstone2LlvmIrTranslator_impl
+//==============================================================================
+//
+
+void Capstone2LlvmIrTranslatorX86_impl::initializeArchSpecific()
+{
+	initializeRegistersParentMap();
+}
+
 void Capstone2LlvmIrTranslatorX86_impl::initializeRegNameMap()
 {
 	std::map<uint32_t, std::string> r2n =
@@ -87,149 +98,6 @@ void Capstone2LlvmIrTranslatorX86_impl::initializeRegNameMap()
 	};
 
 	_reg2name = std::move(r2n);
-}
-
-void Capstone2LlvmIrTranslatorX86_impl::initializeArchSpecific()
-{
-	initializeRegistersParentMap();
-}
-
-void Capstone2LlvmIrTranslatorX86_impl::initializeRegistersParentMapToSelf(
-		const std::vector<x86_reg>& rs)
-{
-	for (auto r : rs)
-	{
-		assert(r < _reg2parentMap.size());
-		_reg2parentMap[r] = r;
-	}
-}
-
-void Capstone2LlvmIrTranslatorX86_impl::initializeRegistersParentMapToOther(
-		const std::vector<x86_reg>& rs,
-		x86_reg other)
-{
-	for (auto r : rs)
-	{
-		assert(r < _reg2parentMap.size());
-		_reg2parentMap[r] = other;
-	}
-}
-
-void Capstone2LlvmIrTranslatorX86_impl::initializeRegistersParentMap()
-{
-	initializeRegistersParentMapCommon();
-
-	switch (_origBasicMode)
-	{
-		case CS_MODE_16: initializeRegistersParentMap16(); break;
-		case CS_MODE_32: initializeRegistersParentMap32(); break;
-		case CS_MODE_64: initializeRegistersParentMap64(); break;
-		default:
-		{
-			throw Capstone2LlvmIrError("Unhandled mode in "
-					"initializeRegistersParentMap().");
-			break;
-		}
-	}
-}
-
-/**
- * Set mapping for registers that are their own parents.
- */
-void Capstone2LlvmIrTranslatorX86_impl::initializeRegistersParentMapCommon()
-{
-	initializeRegistersParentMapToSelf({
-			// Segment registers.
-			X86_REG_SS, X86_REG_CS, X86_REG_DS, X86_REG_ES, X86_REG_FS,
-			X86_REG_GS,
-			// Debug registers.
-			X86_REG_DR0, X86_REG_DR1, X86_REG_DR2, X86_REG_DR3, X86_REG_DR4,
-			X86_REG_DR5, X86_REG_DR6, X86_REG_DR7,
-			// x87 FPU Data registers.
-			X86_REG_ST0, X86_REG_ST1, X86_REG_ST2, X86_REG_ST3, X86_REG_ST4,
-			X86_REG_ST5, X86_REG_ST6, X86_REG_ST7,
-			// Control registers.
-			X86_REG_CR0, X86_REG_CR1, X86_REG_CR2, X86_REG_CR3, X86_REG_CR4,
-			X86_REG_CR5, X86_REG_CR6, X86_REG_CR7, X86_REG_CR8, X86_REG_CR9,
-			X86_REG_CR10, X86_REG_CR11, X86_REG_CR12, X86_REG_CR13,
-			X86_REG_CR14, X86_REG_CR15,
-	});
-}
-
-void Capstone2LlvmIrTranslatorX86_impl::initializeRegistersParentMap16()
-{
-	// Last element in vector is its own parent.
-	std::vector<std::vector<x86_reg>> rss =
-	{
-			{X86_REG_AH, X86_REG_AL, X86_REG_AX},
-			{X86_REG_CH, X86_REG_CL, X86_REG_CX},
-			{X86_REG_DH, X86_REG_DL, X86_REG_DX},
-			{X86_REG_BH, X86_REG_BL, X86_REG_BX},
-			{X86_REG_SPL, X86_REG_SP},
-			{X86_REG_BPL, X86_REG_BP},
-			{X86_REG_SIL, X86_REG_SI},
-			{X86_REG_DIL, X86_REG_DI},
-			{X86_REG_IP},
-	};
-
-	for (std::vector<x86_reg>& rs : rss)
-	{
-		initializeRegistersParentMapToOther(rs, rs.back());
-	}
-}
-
-void Capstone2LlvmIrTranslatorX86_impl::initializeRegistersParentMap32()
-{
-	// Last element in vector is its own parent.
-	std::vector<std::vector<x86_reg>> rss =
-	{
-			{X86_REG_AH, X86_REG_AL, X86_REG_AX, X86_REG_EAX},
-			{X86_REG_CH, X86_REG_CL, X86_REG_CX, X86_REG_ECX},
-			{X86_REG_DH, X86_REG_DL, X86_REG_DX, X86_REG_EDX},
-			{X86_REG_BH, X86_REG_BL, X86_REG_BX, X86_REG_EBX},
-			{X86_REG_SPL, X86_REG_SP, X86_REG_ESP},
-			{X86_REG_BPL, X86_REG_BP, X86_REG_EBP},
-			{X86_REG_SIL, X86_REG_SI, X86_REG_ESI},
-			{X86_REG_DIL, X86_REG_DI, X86_REG_EDI},
-			{X86_REG_IP, X86_REG_EIP},
-			{X86_REG_EIZ},
-	};
-
-	for (std::vector<x86_reg>& rs : rss)
-	{
-		initializeRegistersParentMapToOther(rs, rs.back());
-	}
-}
-
-void Capstone2LlvmIrTranslatorX86_impl::initializeRegistersParentMap64()
-{
-	// Last element in vector is its own parent.
-	std::vector<std::vector<x86_reg>> rss =
-	{
-			{X86_REG_AH, X86_REG_AL, X86_REG_AX, X86_REG_EAX, X86_REG_RAX},
-			{X86_REG_CH, X86_REG_CL, X86_REG_CX, X86_REG_ECX, X86_REG_RCX},
-			{X86_REG_DH, X86_REG_DL, X86_REG_DX, X86_REG_EDX, X86_REG_RDX},
-			{X86_REG_BH, X86_REG_BL, X86_REG_BX, X86_REG_EBX, X86_REG_RBX},
-			{X86_REG_SPL, X86_REG_SP, X86_REG_ESP, X86_REG_RSP},
-			{X86_REG_BPL, X86_REG_BP, X86_REG_EBP, X86_REG_RBP},
-			{X86_REG_SIL, X86_REG_SI, X86_REG_ESI, X86_REG_RSI},
-			{X86_REG_DIL, X86_REG_DI, X86_REG_EDI, X86_REG_RDI},
-			{X86_REG_IP, X86_REG_EIP, X86_REG_RIP},
-			{X86_REG_EIZ, X86_REG_RIZ},
-			{X86_REG_R8B, X86_REG_R8W, X86_REG_R8D, X86_REG_R8},
-			{X86_REG_R9B, X86_REG_R9W, X86_REG_R9D, X86_REG_R9},
-			{X86_REG_R10B, X86_REG_R10W, X86_REG_R10D, X86_REG_R10},
-			{X86_REG_R11B, X86_REG_R11W, X86_REG_R11D, X86_REG_R11},
-			{X86_REG_R12B, X86_REG_R12W, X86_REG_R12D, X86_REG_R12},
-			{X86_REG_R13B, X86_REG_R13W, X86_REG_R13D, X86_REG_R13},
-			{X86_REG_R14B, X86_REG_R14W, X86_REG_R14D, X86_REG_R14},
-			{X86_REG_R15B, X86_REG_R15W, X86_REG_R15D, X86_REG_R15}
-	};
-
-	for (std::vector<x86_reg>& rs : rss)
-	{
-		initializeRegistersParentMapToOther(rs, rs.back());
-	}
 }
 
 void Capstone2LlvmIrTranslatorX86_impl::initializeRegTypeMap()
@@ -432,9 +300,162 @@ void Capstone2LlvmIrTranslatorX86_impl::initializeRegTypeMap()
 	_reg2type = std::move(r2t);
 }
 
+//
+//==============================================================================
+// x86-specific methods.
+//==============================================================================
+//
+
+void Capstone2LlvmIrTranslatorX86_impl::initializeRegistersParentMapToSelf(
+		const std::vector<x86_reg>& rs)
+{
+	for (auto r : rs)
+	{
+		assert(r < _reg2parentMap.size());
+		_reg2parentMap[r] = r;
+	}
+}
+
+void Capstone2LlvmIrTranslatorX86_impl::initializeRegistersParentMapToOther(
+		const std::vector<x86_reg>& rs,
+		x86_reg other)
+{
+	for (auto r : rs)
+	{
+		assert(r < _reg2parentMap.size());
+		_reg2parentMap[r] = other;
+	}
+}
+
+void Capstone2LlvmIrTranslatorX86_impl::initializeRegistersParentMap()
+{
+	initializeRegistersParentMapCommon();
+
+	switch (_origBasicMode)
+	{
+		case CS_MODE_16: initializeRegistersParentMap16(); break;
+		case CS_MODE_32: initializeRegistersParentMap32(); break;
+		case CS_MODE_64: initializeRegistersParentMap64(); break;
+		default:
+		{
+			throw Capstone2LlvmIrError("Unhandled mode in "
+					"initializeRegistersParentMap().");
+			break;
+		}
+	}
+}
+
+/**
+ * Set mapping for registers that are their own parents.
+ */
+void Capstone2LlvmIrTranslatorX86_impl::initializeRegistersParentMapCommon()
+{
+	initializeRegistersParentMapToSelf({
+			// Segment registers.
+			X86_REG_SS, X86_REG_CS, X86_REG_DS, X86_REG_ES, X86_REG_FS,
+			X86_REG_GS,
+			// Debug registers.
+			X86_REG_DR0, X86_REG_DR1, X86_REG_DR2, X86_REG_DR3, X86_REG_DR4,
+			X86_REG_DR5, X86_REG_DR6, X86_REG_DR7,
+			// x87 FPU Data registers.
+			X86_REG_ST0, X86_REG_ST1, X86_REG_ST2, X86_REG_ST3, X86_REG_ST4,
+			X86_REG_ST5, X86_REG_ST6, X86_REG_ST7,
+			// Control registers.
+			X86_REG_CR0, X86_REG_CR1, X86_REG_CR2, X86_REG_CR3, X86_REG_CR4,
+			X86_REG_CR5, X86_REG_CR6, X86_REG_CR7, X86_REG_CR8, X86_REG_CR9,
+			X86_REG_CR10, X86_REG_CR11, X86_REG_CR12, X86_REG_CR13,
+			X86_REG_CR14, X86_REG_CR15,
+	});
+}
+
+void Capstone2LlvmIrTranslatorX86_impl::initializeRegistersParentMap16()
+{
+	// Last element in vector is its own parent.
+	std::vector<std::vector<x86_reg>> rss =
+	{
+			{X86_REG_AH, X86_REG_AL, X86_REG_AX},
+			{X86_REG_CH, X86_REG_CL, X86_REG_CX},
+			{X86_REG_DH, X86_REG_DL, X86_REG_DX},
+			{X86_REG_BH, X86_REG_BL, X86_REG_BX},
+			{X86_REG_SPL, X86_REG_SP},
+			{X86_REG_BPL, X86_REG_BP},
+			{X86_REG_SIL, X86_REG_SI},
+			{X86_REG_DIL, X86_REG_DI},
+			{X86_REG_IP},
+	};
+
+	for (std::vector<x86_reg>& rs : rss)
+	{
+		initializeRegistersParentMapToOther(rs, rs.back());
+	}
+}
+
+void Capstone2LlvmIrTranslatorX86_impl::initializeRegistersParentMap32()
+{
+	// Last element in vector is its own parent.
+	std::vector<std::vector<x86_reg>> rss =
+	{
+			{X86_REG_AH, X86_REG_AL, X86_REG_AX, X86_REG_EAX},
+			{X86_REG_CH, X86_REG_CL, X86_REG_CX, X86_REG_ECX},
+			{X86_REG_DH, X86_REG_DL, X86_REG_DX, X86_REG_EDX},
+			{X86_REG_BH, X86_REG_BL, X86_REG_BX, X86_REG_EBX},
+			{X86_REG_SPL, X86_REG_SP, X86_REG_ESP},
+			{X86_REG_BPL, X86_REG_BP, X86_REG_EBP},
+			{X86_REG_SIL, X86_REG_SI, X86_REG_ESI},
+			{X86_REG_DIL, X86_REG_DI, X86_REG_EDI},
+			{X86_REG_IP, X86_REG_EIP},
+			{X86_REG_EIZ},
+	};
+
+	for (std::vector<x86_reg>& rs : rss)
+	{
+		initializeRegistersParentMapToOther(rs, rs.back());
+	}
+}
+
+void Capstone2LlvmIrTranslatorX86_impl::initializeRegistersParentMap64()
+{
+	// Last element in vector is its own parent.
+	std::vector<std::vector<x86_reg>> rss =
+	{
+			{X86_REG_AH, X86_REG_AL, X86_REG_AX, X86_REG_EAX, X86_REG_RAX},
+			{X86_REG_CH, X86_REG_CL, X86_REG_CX, X86_REG_ECX, X86_REG_RCX},
+			{X86_REG_DH, X86_REG_DL, X86_REG_DX, X86_REG_EDX, X86_REG_RDX},
+			{X86_REG_BH, X86_REG_BL, X86_REG_BX, X86_REG_EBX, X86_REG_RBX},
+			{X86_REG_SPL, X86_REG_SP, X86_REG_ESP, X86_REG_RSP},
+			{X86_REG_BPL, X86_REG_BP, X86_REG_EBP, X86_REG_RBP},
+			{X86_REG_SIL, X86_REG_SI, X86_REG_ESI, X86_REG_RSI},
+			{X86_REG_DIL, X86_REG_DI, X86_REG_EDI, X86_REG_RDI},
+			{X86_REG_IP, X86_REG_EIP, X86_REG_RIP},
+			{X86_REG_EIZ, X86_REG_RIZ},
+			{X86_REG_R8B, X86_REG_R8W, X86_REG_R8D, X86_REG_R8},
+			{X86_REG_R9B, X86_REG_R9W, X86_REG_R9D, X86_REG_R9},
+			{X86_REG_R10B, X86_REG_R10W, X86_REG_R10D, X86_REG_R10},
+			{X86_REG_R11B, X86_REG_R11W, X86_REG_R11D, X86_REG_R11},
+			{X86_REG_R12B, X86_REG_R12W, X86_REG_R12D, X86_REG_R12},
+			{X86_REG_R13B, X86_REG_R13W, X86_REG_R13D, X86_REG_R13},
+			{X86_REG_R14B, X86_REG_R14W, X86_REG_R14D, X86_REG_R14},
+			{X86_REG_R15B, X86_REG_R15W, X86_REG_R15D, X86_REG_R15}
+	};
+
+	for (std::vector<x86_reg>& rs : rss)
+	{
+		initializeRegistersParentMapToOther(rs, rs.back());
+	}
+}
+
+//
+//==============================================================================
+// Instruction translation map initialization.
+//==============================================================================
+//
+
 std::map<
 	std::size_t,
-	void (Capstone2LlvmIrTranslatorX86_impl::*)(cs_insn* i, cs_x86*, llvm::IRBuilder<>&)>
+	void (Capstone2LlvmIrTranslatorX86_impl::*)(
+			cs_insn* i,
+			cs_x86*,
+			llvm::IRBuilder<>&)>
 Capstone2LlvmIrTranslatorX86_impl::_i2fm =
 {
 		{X86_INS_INVALID, nullptr},

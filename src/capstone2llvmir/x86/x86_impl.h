@@ -17,17 +17,17 @@ class Capstone2LlvmIrTranslatorX86_impl :
 		public Capstone2LlvmIrTranslator_impl,
 		public Capstone2LlvmIrTranslatorX86
 {
-	// Constructor, destructor.
-	//
 	public:
 		Capstone2LlvmIrTranslatorX86_impl(
 				llvm::Module* m,
 				cs_mode basic = CS_MODE_32,
 				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
 		virtual ~Capstone2LlvmIrTranslatorX86_impl();
-
-	// Public pure virtual methods that must be implemented in concrete classes.
-	//
+//
+//==============================================================================
+// Mode query & modification methods - from Capstone2LlvmIrTranslator.
+//==============================================================================
+//
 	public:
 		virtual bool isAllowedBasicMode(cs_mode m) override;
 		virtual bool isAllowedExtraMode(cs_mode m) override;
@@ -35,17 +35,22 @@ class Capstone2LlvmIrTranslatorX86_impl :
 		virtual void modifyExtraMode(cs_mode m) override;
 		virtual uint32_t getArchByteSize() override;
 		virtual uint32_t getArchBitSize() override;
-
+//
+//==============================================================================
+// x86 specialization methods - from Capstone2LlvmIrTranslatorX86
+//==============================================================================
+//
 	public:
 		virtual llvm::Function* getX87DataStoreFunction() override;
 		virtual llvm::Function* getX87TagStoreFunction() override;
 		virtual llvm::Function* getX87DataLoadFunction() override;
 		virtual llvm::Function* getX87TagLoadFunction() override;
 		virtual uint32_t getParentRegister(uint32_t r) override;
-
-	// Protected pure virtual methods that must be implemented in concrete
-	// classes.
-	//
+//
+//==============================================================================
+// Pure virtual methods from Capstone2LlvmIrTranslator_impl
+//==============================================================================
+//
 	protected:
 		virtual void initializeArchSpecific() override;
 		virtual void initializeRegNameMap() override;
@@ -57,7 +62,11 @@ class Capstone2LlvmIrTranslatorX86_impl :
 		virtual void translateInstruction(
 				cs_insn* i,
 				llvm::IRBuilder<>& irb) override;
-
+//
+//==============================================================================
+// x86-specific methods.
+//==============================================================================
+//
 	protected:
 		void generateRegistersCommon();
 		void generateRegisters16();
@@ -81,30 +90,6 @@ class Capstone2LlvmIrTranslatorX86_impl :
 
 		virtual llvm::Value* getCurrentPc(cs_insn* i);
 
-	protected:
-		cs_mode _origBasicMode = CS_MODE_LITTLE_ENDIAN;
-
-		/// Maps register numbers to numbers of their parents depending on the
-		/// original basic mode (e.g. X86_REG_AH to X86_REG_EAX in 32-bit mode,
-		/// or to X86_REG_RAX in 64-bit mode).
-		/// Unhandled mappings are set to X86_REG_INVALID (e.g. mapping of
-		/// X86_REG_EAX in 16-bit mode).
-		/// Once generated, it does not change.
-		/// Register's number is a key into the array of parent number values.
-		/// Only values of the Capstone's original @c x86_reg enum are handled,
-		/// our added enums (e.g. @c x86_reg_rflags) are not.
-		/// Always use @c getParentRegister() method to get values from this
-		/// map -- it will deal with added enums.
-		std::vector<uint32_t> _reg2parentMap;
-
-		/// Mapping of Capstone instruction IDs to their translation functions.
-		static std::map<
-			std::size_t,
-			void (Capstone2LlvmIrTranslatorX86_impl::*)(cs_insn* i, cs_x86*, llvm::IRBuilder<>&)> _i2fm;
-
-
-	// Translation helper methods.
-	//
 	protected:
 		llvm::Type* getDefaultType();
 
@@ -275,10 +260,35 @@ class Capstone2LlvmIrTranslatorX86_impl :
 		llvm::Value* genCcO(llvm::IRBuilder<>& irb);
 		llvm::Value* genCcP(llvm::IRBuilder<>& irb);
 		llvm::Value* genCcS(llvm::IRBuilder<>& irb);
-
-	// Helper members.
+	//
+	//==============================================================================
+	// x86 implementation data.
+	//==============================================================================
 	//
 	protected:
+		cs_mode _origBasicMode = CS_MODE_LITTLE_ENDIAN;
+
+		/// Maps register numbers to numbers of their parents depending on the
+		/// original basic mode (e.g. X86_REG_AH to X86_REG_EAX in 32-bit mode,
+		/// or to X86_REG_RAX in 64-bit mode).
+		/// Unhandled mappings are set to X86_REG_INVALID (e.g. mapping of
+		/// X86_REG_EAX in 16-bit mode).
+		/// Once generated, it does not change.
+		/// Register's number is a key into the array of parent number values.
+		/// Only values of the Capstone's original @c x86_reg enum are handled,
+		/// our added enums (e.g. @c x86_reg_rflags) are not.
+		/// Always use @c getParentRegister() method to get values from this
+		/// map -- it will deal with added enums.
+		std::vector<uint32_t> _reg2parentMap;
+
+		/// Mapping of Capstone instruction IDs to their translation functions.
+		static std::map<
+			std::size_t,
+			void (Capstone2LlvmIrTranslatorX86_impl::*)(
+					cs_insn* i,
+					cs_x86*,
+					llvm::IRBuilder<>&)> _i2fm;
+
 		// These are used to save lines needed to declare locale operands in
 		// each translation function.
 		// In C++17, we could use Structured Bindings:
@@ -299,9 +309,11 @@ class Capstone2LlvmIrTranslatorX86_impl :
 		llvm::Function* _x87TagStoreFunction = nullptr; // void (i3, i2)
 		llvm::Function* _x87DataLoadFunction = nullptr; // fp80 (i3)
 		llvm::Function* _x87TagLoadFunction = nullptr; // i2 (i3)
-
-	// Instruction translation methods.
-	//
+//
+//==============================================================================
+// x86 instruction translation methods.
+//==============================================================================
+//
 	protected:
 		void translateAaa(cs_insn* i, cs_x86* xi, llvm::IRBuilder<>& irb);
 		void translateAad(cs_insn* i, cs_x86* xi, llvm::IRBuilder<>& irb);

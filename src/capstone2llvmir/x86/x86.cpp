@@ -31,6 +31,12 @@ Capstone2LlvmIrTranslatorX86_impl::~Capstone2LlvmIrTranslatorX86_impl()
 	// Nothing specific to x86.
 }
 
+//
+//==============================================================================
+// Mode query & modification methods - from Capstone2LlvmIrTranslator.
+//==============================================================================
+//
+
 /**
  * x86 is special. When this returns @c true, mode can be used to initialize
  * x86 translator, but it does not have to be possible to modify translator
@@ -104,6 +110,68 @@ void Capstone2LlvmIrTranslatorX86_impl::modifyExtraMode(cs_mode m)
 	_extraMode = m;
 }
 
+uint32_t Capstone2LlvmIrTranslatorX86_impl::getArchByteSize()
+{
+	switch (_origBasicMode)
+	{
+		case CS_MODE_16: return 2;
+		case CS_MODE_32: return 4;
+		case CS_MODE_64: return 8;
+		default:
+		{
+			throw Capstone2LlvmIrError("Unhandled mode in getArchByteSize().");
+			break;
+		}
+	}
+}
+
+uint32_t Capstone2LlvmIrTranslatorX86_impl::getArchBitSize()
+{
+	return getArchByteSize() * 8;
+}
+
+//
+//==============================================================================
+// x86 specialization methods - from Capstone2LlvmIrTranslatorX86
+//==============================================================================
+//
+
+llvm::Function* Capstone2LlvmIrTranslatorX86_impl::getX87DataStoreFunction()
+{
+	return _x87DataStoreFunction;
+}
+
+llvm::Function* Capstone2LlvmIrTranslatorX86_impl::getX87TagStoreFunction()
+{
+	return _x87TagStoreFunction;
+}
+
+llvm::Function* Capstone2LlvmIrTranslatorX86_impl::getX87DataLoadFunction()
+{
+	return _x87DataLoadFunction;
+}
+
+llvm::Function* Capstone2LlvmIrTranslatorX86_impl::getX87TagLoadFunction()
+{
+	return _x87TagLoadFunction;
+}
+
+/**
+ * All registers from the original Capstone @c x86_reg should be
+ * in @c _reg2parentMap. Our added registers are not there, but all of them
+ * should map to themselves, i.e. if register not in map, we return its number.
+ */
+uint32_t Capstone2LlvmIrTranslatorX86_impl::getParentRegister(uint32_t r)
+{
+	return r < _reg2parentMap.size() ? _reg2parentMap[r] : r;
+}
+
+//
+//==============================================================================
+// Pure virtual methods from Capstone2LlvmIrTranslator_impl
+//==============================================================================
+//
+
 void Capstone2LlvmIrTranslatorX86_impl::generateEnvironmentArchSpecific()
 {
 	generateX87RegLoadStoreFunctions();
@@ -135,6 +203,166 @@ void Capstone2LlvmIrTranslatorX86_impl::generateDataLayout()
 		}
 	}
 }
+
+void Capstone2LlvmIrTranslatorX86_impl::generateRegisters()
+{
+	generateRegistersCommon();
+
+	switch (_origBasicMode)
+	{
+		case CS_MODE_16: generateRegisters16(); break;
+		case CS_MODE_32: generateRegisters32(); break;
+		case CS_MODE_64: generateRegisters64(); break;
+		default:
+		{
+			throw Capstone2LlvmIrError("Unhandled mode in generateRegisters().");
+			break;
+		}
+	}
+}
+
+void Capstone2LlvmIrTranslatorX86_impl::translateInstruction(
+		cs_insn* i,
+		llvm::IRBuilder<>& irb)
+{
+	_insn = i;
+
+	cs_detail* d = i->detail;
+	cs_x86* xi = &d->x86;
+
+	// At the moment, we want to notice these instruction and check if we
+	// can translate them without any special handling.
+	// There are more internals in cs_x86 (e.g. sib, sicp), but Capstone
+	// uses them to interpret instruction operands and we do not have to do
+	// it ourselves.
+	// It is likely that the situation will be the same for these, but we
+	// still want to manually check.
+	//
+
+	// REP @ INS, OUTS, MOVS, LODS, STOS
+	// REPE/REPZ @ CMPS, SCAS
+	// REPNE/REPNZ @ CMPS, SCAS
+	//
+	// X86_PREFIX_REP == X86_PREFIX_REPE
+	//
+	static std::set<unsigned> handledReps =
+	{
+		// X86_PREFIX_REP
+		X86_INS_OUTSB, X86_INS_OUTSD, X86_INS_OUTSW,
+		X86_INS_INSB, X86_INS_INSD, X86_INS_INSW,
+		X86_INS_STOSB, X86_INS_STOSD, X86_INS_STOSQ, X86_INS_STOSW,
+		X86_INS_MOVSB, X86_INS_MOVSW, X86_INS_MOVSD, X86_INS_MOVSQ,
+		X86_INS_LODSB, X86_INS_LODSW, X86_INS_LODSD, X86_INS_LODSQ,
+		// X86_PREFIX_REPE
+		X86_INS_CMPSB, X86_INS_CMPSW, X86_INS_CMPSD, X86_INS_CMPSQ,
+		X86_INS_SCASB, X86_INS_SCASW, X86_INS_SCASD, X86_INS_SCASQ
+	};
+	static std::set<unsigned> handledRepnes =
+	{
+		// X86_PREFIX_REPNE
+		X86_INS_CMPSB, X86_INS_CMPSW, X86_INS_CMPSD, X86_INS_CMPSQ,
+		X86_INS_SCASB, X86_INS_SCASW, X86_INS_SCASD, X86_INS_SCASQ,
+		// BND prefix == X86_PREFIX_REPNE
+		// Some total bullshit, ignore it for all of these instructions:
+		X86_INS_CALL, X86_INS_LCALL, X86_INS_RET, X86_INS_JMP,
+		X86_INS_JAE, X86_INS_JA, X86_INS_JBE, X86_INS_JB, X86_INS_JE, X86_INS_JGE,
+		X86_INS_JG, X86_INS_JLE, X86_INS_JL, X86_INS_JNE, X86_INS_JNO,
+		X86_INS_JNP, X86_INS_JNS, X86_INS_JO, X86_INS_JP, X86_INS_JS
+	};
+	if (xi->prefix[0])
+	{
+		if (xi->prefix[0] == X86_PREFIX_REP
+				&& handledReps.find(i->id) == handledReps.end())
+		{
+//std::cout << "prefix[0] == X86_PREFIX_REP @ " << std::hex << i->address << std::endl;
+//exit(1);
+//			assert(false && "rep prefix not handled");
+			return;
+		}
+		else if (xi->prefix[0] == X86_PREFIX_REP)
+		{
+			// Nothing, REP should be handled.
+		}
+		else if (xi->prefix[0] == X86_PREFIX_REPNE
+				&& handledRepnes.find(i->id) == handledRepnes.end())
+		{
+//std::cout << "prefix[0] == X86_PREFIX_REPNE @ " << std::hex << i->address << std::endl;
+//std::cout << i->mnemonic << " " << i->op_str << std::endl;
+//exit(1);
+//			assert(false && "repne prefix not handled");
+			return;
+		}
+		else if (xi->prefix[0] == X86_PREFIX_REPNE)
+		{
+			// Nothing, REPNE should be handled.
+		}
+		else if (xi->prefix[0] == X86_PREFIX_LOCK)
+		{
+			// Nothing, LOCK does not matter for decompilation.
+		}
+	}
+
+//	assert(!xi->sse_cc);
+//	assert(!xi->avx_cc);
+//	assert(!xi->avx_sae);
+//	assert(!xi->avx_rm);
+
+	auto fIt = _i2fm.find(i->id);
+	if (fIt != _i2fm.end() && fIt->second != nullptr)
+	{
+		auto f = fIt->second;
+//std::cout << std::hex << i->address << " @ " << i->mnemonic << " " << i->op_str << std::endl;
+		(this->*f)(i, xi, irb);
+	}
+	else
+	{
+		bool silentSkip = true;
+		for (unsigned j = 0; j < d->groups_count; ++j)
+		{
+			static std::set<uint8_t> ignoredGroups =
+			{
+					X86_GRP_3DNOW,
+					X86_GRP_AES,
+					X86_GRP_ADX,
+					X86_GRP_AVX,
+					X86_GRP_AVX2,
+					X86_GRP_AVX512,
+					X86_GRP_MMX,
+					X86_GRP_SHA,
+					X86_GRP_SSE1,
+					X86_GRP_SSE2,
+					X86_GRP_SSE3,
+					X86_GRP_SSE41,
+					X86_GRP_SSE42,
+					X86_GRP_SSE4A,
+					X86_GRP_SSSE3,
+			};
+			uint32_t g = d->groups[j];
+			if (ignoredGroups.count(g))
+			{
+				silentSkip = true;
+				break;
+			}
+		}
+
+		if (!silentSkip)
+		{
+			std::stringstream msg;
+			msg << "Translation of unhandled instruction: " << i->id << " ("
+					<< i->mnemonic << " " << i->op_str << ") @ " << std::hex
+					<< i->address << "\n";
+//std::cout << msg.str() << std::endl;
+//exit(1);
+			throw Capstone2LlvmIrError(msg.str());
+		}
+	}
+}
+
+//
+//==============================================================================
+// x86-specific methods.
+//==============================================================================
+//
 
 void Capstone2LlvmIrTranslatorX86_impl::generateX87RegLoadStoreFunctions()
 {
@@ -185,36 +413,6 @@ void Capstone2LlvmIrTranslatorX86_impl::generateX87RegLoadStoreFunctions()
 			_module);
 }
 
-llvm::Function* Capstone2LlvmIrTranslatorX86_impl::getX87DataStoreFunction()
-{
-	return _x87DataStoreFunction;
-}
-
-llvm::Function* Capstone2LlvmIrTranslatorX86_impl::getX87TagStoreFunction()
-{
-	return _x87TagStoreFunction;
-}
-
-llvm::Function* Capstone2LlvmIrTranslatorX86_impl::getX87DataLoadFunction()
-{
-	return _x87DataLoadFunction;
-}
-
-llvm::Function* Capstone2LlvmIrTranslatorX86_impl::getX87TagLoadFunction()
-{
-	return _x87TagLoadFunction;
-}
-
-/**
- * All registers from the original Capstone @c x86_reg should be
- * in @c _reg2parentMap. Our added registers are not there, but all of them
- * should map to themselves, i.e. if register not in map, we return its number.
- */
-uint32_t Capstone2LlvmIrTranslatorX86_impl::getParentRegister(uint32_t r)
-{
-	return r < _reg2parentMap.size() ? _reg2parentMap[r] : r;
-}
-
 uint32_t Capstone2LlvmIrTranslatorX86_impl::getAccumulatorRegister(std::size_t size)
 {
 	switch (size)
@@ -262,43 +460,6 @@ llvm::Value* Capstone2LlvmIrTranslatorX86_impl::getCurrentPc(cs_insn* i)
 	return llvm::ConstantInt::get(
 			getIntegerTypeFromByteSize(_module, getArchByteSize()),
 			i->address + i->size);
-}
-
-uint32_t Capstone2LlvmIrTranslatorX86_impl::getArchByteSize()
-{
-	switch (_origBasicMode)
-	{
-		case CS_MODE_16: return 2;
-		case CS_MODE_32: return 4;
-		case CS_MODE_64: return 8;
-		default:
-		{
-			throw Capstone2LlvmIrError("Unhandled mode in getArchByteSize().");
-			break;
-		}
-	}
-}
-
-uint32_t Capstone2LlvmIrTranslatorX86_impl::getArchBitSize()
-{
-	return getArchByteSize() * 8;
-}
-
-void Capstone2LlvmIrTranslatorX86_impl::generateRegisters()
-{
-	generateRegistersCommon();
-
-	switch (_origBasicMode)
-	{
-		case CS_MODE_16: generateRegisters16(); break;
-		case CS_MODE_32: generateRegisters32(); break;
-		case CS_MODE_64: generateRegisters64(); break;
-		default:
-		{
-			throw Capstone2LlvmIrError("Unhandled mode in generateRegisters().");
-			break;
-		}
-	}
 }
 
 void Capstone2LlvmIrTranslatorX86_impl::generateRegistersCommon()
@@ -491,143 +652,6 @@ void Capstone2LlvmIrTranslatorX86_impl::generateRegisters64()
 	//
 	// Pseudo register eval to 0.
 	createRegister(X86_REG_RIZ, _regLt, i64Zero); // ----, ----, ----,  eiz
-}
-
-void Capstone2LlvmIrTranslatorX86_impl::translateInstruction(
-		cs_insn* i,
-		llvm::IRBuilder<>& irb)
-{
-	_insn = i;
-
-	cs_detail* d = i->detail;
-	cs_x86* xi = &d->x86;
-
-	// At the moment, we want to notice these instruction and check if we
-	// can translate them without any special handling.
-	// There are more internals in cs_x86 (e.g. sib, sicp), but Capstone
-	// uses them to interpret instruction operands and we do not have to do
-	// it ourselves.
-	// It is likely that the situation will be the same for these, but we
-	// still want to manually check.
-	//
-
-	// REP @ INS, OUTS, MOVS, LODS, STOS
-	// REPE/REPZ @ CMPS, SCAS
-	// REPNE/REPNZ @ CMPS, SCAS
-	//
-	// X86_PREFIX_REP == X86_PREFIX_REPE
-	//
-	static std::set<unsigned> handledReps =
-	{
-		// X86_PREFIX_REP
-		X86_INS_OUTSB, X86_INS_OUTSD, X86_INS_OUTSW,
-		X86_INS_INSB, X86_INS_INSD, X86_INS_INSW,
-		X86_INS_STOSB, X86_INS_STOSD, X86_INS_STOSQ, X86_INS_STOSW,
-		X86_INS_MOVSB, X86_INS_MOVSW, X86_INS_MOVSD, X86_INS_MOVSQ,
-		X86_INS_LODSB, X86_INS_LODSW, X86_INS_LODSD, X86_INS_LODSQ,
-		// X86_PREFIX_REPE
-		X86_INS_CMPSB, X86_INS_CMPSW, X86_INS_CMPSD, X86_INS_CMPSQ,
-		X86_INS_SCASB, X86_INS_SCASW, X86_INS_SCASD, X86_INS_SCASQ
-	};
-	static std::set<unsigned> handledRepnes =
-	{
-		// X86_PREFIX_REPNE
-		X86_INS_CMPSB, X86_INS_CMPSW, X86_INS_CMPSD, X86_INS_CMPSQ,
-		X86_INS_SCASB, X86_INS_SCASW, X86_INS_SCASD, X86_INS_SCASQ,
-		// BND prefix == X86_PREFIX_REPNE
-		// Some total bullshit, ignore it for all of these instructions:
-		X86_INS_CALL, X86_INS_LCALL, X86_INS_RET, X86_INS_JMP,
-		X86_INS_JAE, X86_INS_JA, X86_INS_JBE, X86_INS_JB, X86_INS_JE, X86_INS_JGE,
-		X86_INS_JG, X86_INS_JLE, X86_INS_JL, X86_INS_JNE, X86_INS_JNO,
-		X86_INS_JNP, X86_INS_JNS, X86_INS_JO, X86_INS_JP, X86_INS_JS
-	};
-	if (xi->prefix[0])
-	{
-		if (xi->prefix[0] == X86_PREFIX_REP
-				&& handledReps.find(i->id) == handledReps.end())
-		{
-//std::cout << "prefix[0] == X86_PREFIX_REP @ " << std::hex << i->address << std::endl;
-//exit(1);
-//			assert(false && "rep prefix not handled");
-			return;
-		}
-		else if (xi->prefix[0] == X86_PREFIX_REP)
-		{
-			// Nothing, REP should be handled.
-		}
-		else if (xi->prefix[0] == X86_PREFIX_REPNE
-				&& handledRepnes.find(i->id) == handledRepnes.end())
-		{
-//std::cout << "prefix[0] == X86_PREFIX_REPNE @ " << std::hex << i->address << std::endl;
-//std::cout << i->mnemonic << " " << i->op_str << std::endl;
-//exit(1);
-//			assert(false && "repne prefix not handled");
-			return;
-		}
-		else if (xi->prefix[0] == X86_PREFIX_REPNE)
-		{
-			// Nothing, REPNE should be handled.
-		}
-		else if (xi->prefix[0] == X86_PREFIX_LOCK)
-		{
-			// Nothing, LOCK does not matter for decompilation.
-		}
-	}
-
-//	assert(!xi->sse_cc);
-//	assert(!xi->avx_cc);
-//	assert(!xi->avx_sae);
-//	assert(!xi->avx_rm);
-
-	auto fIt = _i2fm.find(i->id);
-	if (fIt != _i2fm.end() && fIt->second != nullptr)
-	{
-		auto f = fIt->second;
-//std::cout << std::hex << i->address << " @ " << i->mnemonic << " " << i->op_str << std::endl;
-		(this->*f)(i, xi, irb);
-	}
-	else
-	{
-		bool silentSkip = true;
-		for (unsigned j = 0; j < d->groups_count; ++j)
-		{
-			static std::set<uint8_t> ignoredGroups =
-			{
-					X86_GRP_3DNOW,
-					X86_GRP_AES,
-					X86_GRP_ADX,
-					X86_GRP_AVX,
-					X86_GRP_AVX2,
-					X86_GRP_AVX512,
-					X86_GRP_MMX,
-					X86_GRP_SHA,
-					X86_GRP_SSE1,
-					X86_GRP_SSE2,
-					X86_GRP_SSE3,
-					X86_GRP_SSE41,
-					X86_GRP_SSE42,
-					X86_GRP_SSE4A,
-					X86_GRP_SSSE3,
-			};
-			uint32_t g = d->groups[j];
-			if (ignoredGroups.count(g))
-			{
-				silentSkip = true;
-				break;
-			}
-		}
-
-		if (!silentSkip)
-		{
-			std::stringstream msg;
-			msg << "Translation of unhandled instruction: " << i->id << " ("
-					<< i->mnemonic << " " << i->op_str << ") @ " << std::hex
-					<< i->address << "\n";
-//std::cout << msg.str() << std::endl;
-//exit(1);
-			throw Capstone2LlvmIrError(msg.str());
-		}
-	}
 }
 
 //
@@ -1796,7 +1820,7 @@ llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcS(llvm::IRBuilder<>& irb)
 
 //
 //==============================================================================
-// Instruction translation methods.
+// x86 instruction translation methods.
 //==============================================================================
 //
 

@@ -17,17 +17,17 @@ class Capstone2LlvmIrTranslatorMips_impl :
 		public Capstone2LlvmIrTranslator_impl,
 		public Capstone2LlvmIrTranslatorMips
 {
-	// Constructor, destructor.
-	//
 	public:
 		Capstone2LlvmIrTranslatorMips_impl(
 				llvm::Module* m,
 				cs_mode basic = CS_MODE_MIPS32,
 				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
 		virtual ~Capstone2LlvmIrTranslatorMips_impl();
-
-	// Public pure virtual methods that must be implemented in concrete classes.
-	//
+//
+//==============================================================================
+// Mode query & modification methods - from Capstone2LlvmIrTranslator.
+//==============================================================================
+//
 	public:
 		virtual bool isAllowedBasicMode(cs_mode m) override;
 		virtual bool isAllowedExtraMode(cs_mode m) override;
@@ -35,18 +35,21 @@ class Capstone2LlvmIrTranslatorMips_impl :
 		virtual void modifyExtraMode(cs_mode m) override;
 		virtual uint32_t getArchByteSize() override;
 		virtual uint32_t getArchBitSize() override;
-
-	// Public virtual methods that may be overriden in concrete classes.
-	//
+//
+//==============================================================================
+// Capstone related getters - from Capstone2LlvmIrTranslator.
+//==============================================================================
+//
 	public:
 		virtual bool hasDelaySlot(uint32_t id) const override;
 		virtual bool hasDelaySlotTypical(uint32_t id) const override;
 		virtual bool hasDelaySlotLikely(uint32_t id) const override;
 		virtual std::size_t getDelaySlot(uint32_t id) const override;
-
-	// Protected pure virtual methods that must be implemented in concrete
-	// classes.
-	//
+//
+//==============================================================================
+// Pure virtual methods from Capstone2LlvmIrTranslator_impl
+//==============================================================================
+//
 	protected:
 		virtual void initializeArchSpecific() override;
 		virtual void initializeRegNameMap() override;
@@ -58,7 +61,11 @@ class Capstone2LlvmIrTranslatorMips_impl :
 		virtual void translateInstruction(
 				cs_insn* i,
 				llvm::IRBuilder<>& irb) override;
-
+//
+//==============================================================================
+// MIPS-specific methods.
+//==============================================================================
+//
 	protected:
 		llvm::IntegerType* getDefaultType();
 		llvm::Value* getCurrentPc(cs_insn* i);
@@ -111,11 +118,18 @@ class Capstone2LlvmIrTranslatorMips_impl :
 				eOpConv ct = eOpConv::SEXT_TRUNC);
 
 		bool isFpInstructionVariant(cs_insn* i);
-
+//
+//==============================================================================
+// MIPS implementation data.
+//==============================================================================
+//
 	protected:
 		static std::map<
 			std::size_t,
-			void (Capstone2LlvmIrTranslatorMips_impl::*)(cs_insn* i, cs_mips*, llvm::IRBuilder<>&)> _i2fm;
+			void (Capstone2LlvmIrTranslatorMips_impl::*)(
+					cs_insn* i,
+					cs_mips*,
+					llvm::IRBuilder<>&)> _i2fm;
 
 		// These are used to save lines needed to declare locale operands in
 		// each translation function.
@@ -126,12 +140,13 @@ class Capstone2LlvmIrTranslatorMips_impl :
 		llvm::Value* op2 = nullptr;
 		llvm::Value* op3 = nullptr;
 
-		// TODO: This is a hack, sometimes we need cs_insn deep in helper
-		// methods like @c loadRegister() where it is hard to propagate it.
+		/// Capstone instruction being currently translated.
 		cs_insn* _insn = nullptr;
-
-	// Instruction translation methods.
-	//
+//
+//==============================================================================
+// MIPS instruction translation methods.
+//==============================================================================
+//
 	protected:
 		void translateAdd(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb);
 		void translateAnd(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb);

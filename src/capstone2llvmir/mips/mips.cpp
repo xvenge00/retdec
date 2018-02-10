@@ -29,6 +29,12 @@ Capstone2LlvmIrTranslatorMips_impl::~Capstone2LlvmIrTranslatorMips_impl()
 	// Nothing specific to MIPS.
 }
 
+//
+//==============================================================================
+// Mode query & modification methods - from Capstone2LlvmIrTranslator.
+//==============================================================================
+//
+
 bool Capstone2LlvmIrTranslatorMips_impl::isAllowedBasicMode(cs_mode m)
 {
 	return m == CS_MODE_MIPS32
@@ -116,6 +122,12 @@ uint32_t Capstone2LlvmIrTranslatorMips_impl::getArchBitSize()
 	return getArchByteSize() * 8;
 }
 
+//
+//==============================================================================
+// Capstone related getters - from Capstone2LlvmIrTranslator.
+//==============================================================================
+//
+
 bool Capstone2LlvmIrTranslatorMips_impl::hasDelaySlot(uint32_t id) const
 {
 	return getDelaySlot(id);
@@ -159,6 +171,12 @@ std::size_t Capstone2LlvmIrTranslatorMips_impl::getDelaySlot(uint32_t id) const
 	};
 	return set.count(id);
 }
+
+//
+//==============================================================================
+// Pure virtual methods from Capstone2LlvmIrTranslator_impl
+//==============================================================================
+//
 
 void Capstone2LlvmIrTranslatorMips_impl::generateEnvironmentArchSpecific()
 {
@@ -385,6 +403,12 @@ void Capstone2LlvmIrTranslatorMips_impl::translateInstruction(
 //		throw Capstone2LlvmIrError(msg.str());
 	}
 }
+
+//
+//==============================================================================
+// MIPS-specific methods.
+//==============================================================================
+//
 
 /**
  * TODO: Maybe this could be done in an abstract class level?
@@ -896,6 +920,12 @@ bool Capstone2LlvmIrTranslatorMips_impl::isFpInstructionVariant(cs_insn* i)
 			&& MIPS_REG_F0 <= mi.operands[0].reg
 			&& mi.operands[0].reg <= MIPS_REG_F31;
 }
+
+//
+//==============================================================================
+// MIPS instruction translation methods.
+//==============================================================================
+//
 
 /**
  * MIPS_INS_ADDI, MIPS_INS_ADDIU, MIPS_INS_ADD, MIPS_INS_ADDU

@@ -29,6 +29,12 @@ Capstone2LlvmIrTranslatorPowerpc_impl::~Capstone2LlvmIrTranslatorPowerpc_impl()
 	// Nothing specific to PowerPC.
 }
 
+//
+//==============================================================================
+// Mode query & modification methods - from Capstone2LlvmIrTranslator.
+//==============================================================================
+//
+
 bool Capstone2LlvmIrTranslatorPowerpc_impl::isAllowedBasicMode(cs_mode m)
 {
 	return m == CS_MODE_32 || m == CS_MODE_64 || m == CS_MODE_QPX;
@@ -96,6 +102,12 @@ uint32_t Capstone2LlvmIrTranslatorPowerpc_impl::getArchBitSize()
 {
 	return getArchByteSize() * 8;
 }
+
+//
+//==============================================================================
+// Pure virtual methods from Capstone2LlvmIrTranslator_impl
+//==============================================================================
+//
 
 void Capstone2LlvmIrTranslatorPowerpc_impl::generateEnvironmentArchSpecific()
 {
@@ -284,11 +296,11 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateInstruction(
 	}
 }
 
-void Capstone2LlvmIrTranslatorPowerpc_impl::translateASSERT(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
-{
-//	std::cout << std::hex << i->address << " @ " << i->mnemonic << " " << i->op_str << std::endl;
-	assert(false);
-}
+//
+//==============================================================================
+// PowerPC-specific methods.
+//==============================================================================
+//
 
 llvm::IntegerType* Capstone2LlvmIrTranslatorPowerpc_impl::getDefaultType()
 {
@@ -1023,6 +1035,12 @@ bool Capstone2LlvmIrTranslatorPowerpc_impl::isCrRegister(cs_ppc_op& op)
 {
 	return op.type == PPC_OP_REG && isCrRegister(op.reg);
 }
+
+//
+//==============================================================================
+// PowerPC instruction translation methods.
+//==============================================================================
+//
 
 /**
  * PPC_INS_ADD, PPC_INS_ADDI
@@ -2862,6 +2880,12 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateB(cs_insn* i, cs_ppc* pi, l
 		generateCondBranchFunctionCall(irb, cond, target);
 	}
 }
+
+ void Capstone2LlvmIrTranslatorPowerpc_impl::translateASSERT(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
+ {
+ //	std::cout << std::hex << i->address << " @ " << i->mnemonic << " " << i->op_str << std::endl;
+ 	assert(false);
+ }
 
 } // namespace capstone2llvmir
 } // namespace retdec

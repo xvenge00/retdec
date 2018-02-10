@@ -9,6 +9,17 @@
 namespace retdec {
 namespace capstone2llvmir {
 
+//
+//==============================================================================
+// Pure virtual methods from Capstone2LlvmIrTranslator_impl
+//==============================================================================
+//
+
+void Capstone2LlvmIrTranslatorMips_impl::initializeArchSpecific()
+{
+	// Nothing.
+}
+
 void Capstone2LlvmIrTranslatorMips_impl::initializeRegNameMap()
 {
 	std::map<uint32_t, std::string> r2n =
@@ -236,14 +247,18 @@ void Capstone2LlvmIrTranslatorMips_impl::initializeRegTypeMap()
 	_reg2type = std::move(r2t);
 }
 
-void Capstone2LlvmIrTranslatorMips_impl::initializeArchSpecific()
-{
-	// Nothing.
-}
+//
+//==============================================================================
+// Instruction translation map initialization.
+//==============================================================================
+//
 
 std::map<
 	std::size_t,
-	void (Capstone2LlvmIrTranslatorMips_impl::*)(cs_insn* i, cs_mips*, llvm::IRBuilder<>&)>
+	void (Capstone2LlvmIrTranslatorMips_impl::*)(
+			cs_insn* i,
+			cs_mips*,
+			llvm::IRBuilder<>&)>
 Capstone2LlvmIrTranslatorMips_impl::_i2fm =
 {
 		{MIPS_INS_INVALID, nullptr},

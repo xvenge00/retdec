@@ -17,17 +17,17 @@ class Capstone2LlvmIrTranslatorArm_impl :
 		public Capstone2LlvmIrTranslator_impl,
 		public Capstone2LlvmIrTranslatorArm
 {
-	// Constructor, destructor.
-	//
 	public:
 		Capstone2LlvmIrTranslatorArm_impl(
 				llvm::Module* m,
 				cs_mode basic = CS_MODE_ARM,
 				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
 		virtual ~Capstone2LlvmIrTranslatorArm_impl();
-
-	// Public pure virtual methods that must be implemented in concrete classes.
-	//
+//
+//==============================================================================
+// Mode query & modification methods - from Capstone2LlvmIrTranslator.
+//==============================================================================
+//
 	public:
 		virtual bool isAllowedBasicMode(cs_mode m) override;
 		virtual bool isAllowedExtraMode(cs_mode m) override;
@@ -35,10 +35,11 @@ class Capstone2LlvmIrTranslatorArm_impl :
 		virtual void modifyExtraMode(cs_mode m) override;
 		virtual uint32_t getArchByteSize() override;
 		virtual uint32_t getArchBitSize() override;
-
-	// Protected pure virtual methods that must be implemented in concrete
-	// classes.
-	//
+//
+//==============================================================================
+// Pure virtual methods from Capstone2LlvmIrTranslator_impl
+//==============================================================================
+//
 	protected:
 		virtual void initializeArchSpecific() override;
 		virtual void initializeRegNameMap() override;
@@ -50,7 +51,11 @@ class Capstone2LlvmIrTranslatorArm_impl :
 		virtual void translateInstruction(
 				cs_insn* i,
 				llvm::IRBuilder<>& irb) override;
-
+//
+//==============================================================================
+// ARM-specific methods.
+//==============================================================================
+//
 	protected:
 		llvm::IntegerType* getDefaultType();
 		llvm::Value* getCurrentPc(cs_insn* i);
@@ -168,11 +173,18 @@ class Capstone2LlvmIrTranslatorArm_impl :
 				llvm::IRBuilder<>& irb,
 				llvm::Value* val,
 				llvm::Value* n);
-
+//
+//==============================================================================
+// ARM implementation data.
+//==============================================================================
+//
 	protected:
 		static std::map<
 			std::size_t,
-			void (Capstone2LlvmIrTranslatorArm_impl::*)(cs_insn* i, cs_arm*, llvm::IRBuilder<>&)> _i2fm;
+			void (Capstone2LlvmIrTranslatorArm_impl::*)(
+					cs_insn* i,
+					cs_arm*,
+					llvm::IRBuilder<>&)> _i2fm;
 
 		// These are used to save lines needed to declare locale operands in
 		// each translation function.
@@ -183,12 +195,13 @@ class Capstone2LlvmIrTranslatorArm_impl :
 		llvm::Value* op2 = nullptr;
 		llvm::Value* op3 = nullptr;
 
-		// TODO: This is a hack, sometimes we need cs_insn deep in helper
-		// methods like @c loadRegister() where it is hard to propagate it.
+		/// Capstone instruction being currently translated.
 		cs_insn* _insn = nullptr;
-
-	// Instruction translation methods.
-	//
+//
+//==============================================================================
+// ARM instruction translation methods.
+//==============================================================================
+//
 	protected:
 		void translateAdc(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb);
 		void translateAdd(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb);

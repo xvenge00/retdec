@@ -9,6 +9,17 @@
 namespace retdec {
 namespace capstone2llvmir {
 
+//
+//==============================================================================
+// Pure virtual methods from Capstone2LlvmIrTranslator_impl
+//==============================================================================
+//
+
+void Capstone2LlvmIrTranslatorArm_impl::initializeArchSpecific()
+{
+	// Nothing.
+}
+
 void Capstone2LlvmIrTranslatorArm_impl::initializeRegNameMap()
 {
 	std::map<uint32_t, std::string> r2n =
@@ -62,14 +73,18 @@ void Capstone2LlvmIrTranslatorArm_impl::initializeRegTypeMap()
 	_reg2type = std::move(r2t);
 }
 
-void Capstone2LlvmIrTranslatorArm_impl::initializeArchSpecific()
-{
-	// Nothing.
-}
+//
+//==============================================================================
+// Instruction translation map initialization.
+//==============================================================================
+//
 
 std::map<
 	std::size_t,
-	void (Capstone2LlvmIrTranslatorArm_impl::*)(cs_insn* i, cs_arm*, llvm::IRBuilder<>&)>
+	void (Capstone2LlvmIrTranslatorArm_impl::*)(
+			cs_insn* i,
+			cs_arm*,
+			llvm::IRBuilder<>&)>
 Capstone2LlvmIrTranslatorArm_impl::_i2fm =
 {
 		{ARM_INS_INVALID, nullptr},

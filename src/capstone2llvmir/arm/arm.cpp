@@ -29,6 +29,12 @@ Capstone2LlvmIrTranslatorArm_impl::~Capstone2LlvmIrTranslatorArm_impl()
 	// Nothing specific to ARM.
 }
 
+//
+//==============================================================================
+// Mode query & modification methods - from Capstone2LlvmIrTranslator.
+//==============================================================================
+//
+
 bool Capstone2LlvmIrTranslatorArm_impl::isAllowedBasicMode(cs_mode m)
 {
 	return m == CS_MODE_ARM
@@ -98,6 +104,12 @@ uint32_t Capstone2LlvmIrTranslatorArm_impl::getArchBitSize()
 	return getArchByteSize() * 8;
 }
 
+//
+//==============================================================================
+// Pure virtual methods from Capstone2LlvmIrTranslator_impl
+//==============================================================================
+//
+
 void Capstone2LlvmIrTranslatorArm_impl::generateEnvironmentArchSpecific()
 {
 	// Nothing.
@@ -139,6 +151,72 @@ void Capstone2LlvmIrTranslatorArm_impl::generateRegisters()
 	createRegister(ARM_REG_CPSR_C, _regLt);
 	createRegister(ARM_REG_CPSR_V, _regLt);
 }
+
+void Capstone2LlvmIrTranslatorArm_impl::translateInstruction(
+		cs_insn* i,
+		llvm::IRBuilder<>& irb)
+{
+	_insn = i;
+
+	cs_detail* d = i->detail;
+	cs_arm* ai = &d->arm;
+
+//std::cout << std::hex << i->address << " @ " << i->mnemonic << " " << i->op_str << std::endl;
+
+//	assert(ai->vector_size == 0);
+//	assert(ai->vector_data == ARM_VECTORDATA_INVALID);
+//	assert(ai->cps_mode == ARM_CPSMODE_INVALID);
+//	assert(ai->cps_flag == ARM_CPSFLAG_INVALID);
+//	assert(ai->mem_barrier == ARM_MB_INVALID);
+	if (!(ai->vector_size == 0
+			&& ai->vector_data == ARM_VECTORDATA_INVALID
+			&& ai->cps_mode == ARM_CPSMODE_INVALID
+			&& ai->cps_flag == ARM_CPSFLAG_INVALID
+			&& ai->mem_barrier == ARM_MB_INVALID))
+	{
+		return;
+	}
+
+	auto fIt = _i2fm.find(i->id);
+	if (fIt != _i2fm.end() && fIt->second != nullptr)
+	{
+		auto f = fIt->second;
+
+		bool branchInsn = i->id == ARM_INS_B || i->id == ARM_INS_BX
+				|| i->id == ARM_INS_BL || i->id == ARM_INS_BLX
+				|| i->id == ARM_INS_CBZ || i->id == ARM_INS_CBNZ;
+		if (ai->cc == ARM_CC_AL || ai->cc == ARM_CC_INVALID || branchInsn)
+		{
+			_inCondition = false;
+			(this->*f)(i, ai, irb);
+		}
+		else
+		{
+			_inCondition = true;
+
+			auto* cond = generateInsnConditionCode(irb, ai);
+			auto bodyIrb = generateIfThen(cond, irb);
+
+			(this->*f)(i, ai, bodyIrb);
+		}
+	}
+	else
+	{
+//		assert(false && "unhandled instruction");
+
+//		std::stringstream msg;
+//		msg << "Translation of unhandled instruction: " << i->id << " ("
+//				<< i->mnemonic << " " << i->op_str << ") @ " << std::hex
+//				<< i->address << "\n";
+//		throw Capstone2LlvmIrError(msg.str());
+	}
+}
+
+//
+//==============================================================================
+// ARM-specific methods.
+//==============================================================================
+//
 
 llvm::IntegerType* Capstone2LlvmIrTranslatorArm_impl::getDefaultType()
 {
@@ -1134,65 +1212,11 @@ llvm::Value* Capstone2LlvmIrTranslatorArm_impl::generateInsnConditionCode(
 	}
 }
 
-void Capstone2LlvmIrTranslatorArm_impl::translateInstruction(
-		cs_insn* i,
-		llvm::IRBuilder<>& irb)
-{
-	_insn = i;
-
-	cs_detail* d = i->detail;
-	cs_arm* ai = &d->arm;
-
-//std::cout << std::hex << i->address << " @ " << i->mnemonic << " " << i->op_str << std::endl;
-
-//	assert(ai->vector_size == 0);
-//	assert(ai->vector_data == ARM_VECTORDATA_INVALID);
-//	assert(ai->cps_mode == ARM_CPSMODE_INVALID);
-//	assert(ai->cps_flag == ARM_CPSFLAG_INVALID);
-//	assert(ai->mem_barrier == ARM_MB_INVALID);
-	if (!(ai->vector_size == 0
-			&& ai->vector_data == ARM_VECTORDATA_INVALID
-			&& ai->cps_mode == ARM_CPSMODE_INVALID
-			&& ai->cps_flag == ARM_CPSFLAG_INVALID
-			&& ai->mem_barrier == ARM_MB_INVALID))
-	{
-		return;
-	}
-
-	auto fIt = _i2fm.find(i->id);
-	if (fIt != _i2fm.end() && fIt->second != nullptr)
-	{
-		auto f = fIt->second;
-
-		bool branchInsn = i->id == ARM_INS_B || i->id == ARM_INS_BX
-				|| i->id == ARM_INS_BL || i->id == ARM_INS_BLX
-				|| i->id == ARM_INS_CBZ || i->id == ARM_INS_CBNZ;
-		if (ai->cc == ARM_CC_AL || ai->cc == ARM_CC_INVALID || branchInsn)
-		{
-			_inCondition = false;
-			(this->*f)(i, ai, irb);
-		}
-		else
-		{
-			_inCondition = true;
-
-			auto* cond = generateInsnConditionCode(irb, ai);
-			auto bodyIrb = generateIfThen(cond, irb);
-
-			(this->*f)(i, ai, bodyIrb);
-		}
-	}
-	else
-	{
-//		assert(false && "unhandled instruction");
-
-//		std::stringstream msg;
-//		msg << "Translation of unhandled instruction: " << i->id << " ("
-//				<< i->mnemonic << " " << i->op_str << ") @ " << std::hex
-//				<< i->address << "\n";
-//		throw Capstone2LlvmIrError(msg.str());
-	}
-}
+//
+//==============================================================================
+// ARM instruction translation methods.
+//==============================================================================
+//
 
 /**
  * ARM_INS_ADC
