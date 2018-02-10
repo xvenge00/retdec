@@ -2,6 +2,11 @@
 
 # dev
 
+* Enhancement: References to ticket numbers from our internal issue tracking systems were replaced by short descriptions in `retdec-regression-tests` repository ([commit](https://github.com/avast-tl/retdec-regression-tests/commit/bcbab21ad57d084136ce5ffc8a1d6325c2cf792b)).
+* Enhancement: Added a missing license for the `retdec-support` repository ([retdec-support #1](https://github.com/avast-tl/retdec-support/issues/1)).
+* Enhancement: Better detection of tools: new signatures and heuristics. YARA signatures are compiled now.
+* Enhancement: Added Travis and Appveyor continuous integration builds ([#2](https://github.com/avast-tl/retdec/issues/2)).
+* Enhancement: Build with `-std=c++14` instead of `-std=gnu++14` with GCC on Linux ([#76](https://github.com/avast-tl/retdec/issues/76)).
 * Enhancement: Speeded up build by skipping compilation of unnecessary dependencies (e.g. unused LLVM libraries, tools, and examples).
 * Enhancement: OpenSSL is now automatically built only if it is not found in your system.
 * Enhancement: Added support for a system-wide installation ([#94](https://github.com/avast-tl/retdec/issues/94)).
