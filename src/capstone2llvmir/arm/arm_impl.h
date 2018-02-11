@@ -68,16 +68,16 @@ class Capstone2LlvmIrTranslatorArm_impl :
 				llvm::Type* ty = nullptr,
 				bool lea = false) override;
 
-		llvm::Instruction* storeRegister(
+		virtual llvm::Instruction* storeRegister(
 				uint32_t r,
 				llvm::Value* val,
 				llvm::IRBuilder<>& irb,
-				eOpConv ct = eOpConv::SEXT_TRUNC);
-		llvm::Instruction* storeOp(
+				eOpConv ct = eOpConv::SEXT_TRUNC) override;
+		virtual llvm::Instruction* storeOp(
 				cs_arm_op& op,
 				llvm::Value* val,
 				llvm::IRBuilder<>& irb,
-				eOpConv ct = eOpConv::SEXT_TRUNC);
+				eOpConv ct = eOpConv::SEXT_TRUNC) override;
 
 		llvm::Value* generateInsnConditionCode(
 				llvm::IRBuilder<>& irb,

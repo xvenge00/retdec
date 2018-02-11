@@ -742,44 +742,7 @@ llvm::Value* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::loadOpUnary(
 	}
 
 	auto* op = loadOp(ci->operands[0], irb, loadType);
-	if (dstType == nullptr || op->getType() == dstType)
-	{
-		return op;
-	}
-
-	switch (ct)
-	{
-		case eOpConv::ZEXT_TRUNC:
-		{
-			op = irb.CreateZExtOrTrunc(op, dstType);
-			break;
-		}
-		case eOpConv::FP_CAST:
-		{
-			op = irb.CreateFPCast(op, dstType);
-			break;
-		}
-		case eOpConv::SITOFP:
-		{
-			op = irb.CreateSIToFP(op, dstType);
-			break;
-		}
-		case eOpConv::UITOFP:
-		{
-			op = irb.CreateUIToFP(op, dstType);
-			break;
-		}
-		case eOpConv::NOTHING:
-		{
-			break;
-		}
-		case eOpConv::THROW:
-		default:
-		{
-			throw Capstone2LlvmIrError("Type of reg load not equal dst type.");
-		}
-	}
-
+	op = generateTypeConversion(irb, op, dstType, ct);
 	return op;
 }
 
@@ -801,32 +764,7 @@ Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::loadOpBinary(
 	{
 		throw Capstone2LlvmIrError("Operands loading failed.");
 	}
-
-	if (op0->getType() != op1->getType())
-	{
-		switch (ct)
-		{
-			case eOpConv::SECOND_SEXT:
-			{
-				op1 = irb.CreateSExtOrTrunc(op1, op0->getType());
-				break;
-			}
-			case eOpConv::SECOND_ZEXT:
-			{
-				op1 = irb.CreateZExtOrTrunc(op1, op0->getType());
-				break;
-			}
-			case eOpConv::NOTHING:
-			{
-				break;
-			}
-			default:
-			case eOpConv::THROW:
-			{
-				throw Capstone2LlvmIrError("Binary operands' types not equal.");
-			}
-		}
-	}
+	op1 = generateTypeConversion(irb, op1, op0->getType(), ct);
 
 	return std::make_pair(op0, op1);
 }
@@ -924,33 +862,7 @@ Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::loadOpTernaryOp1Op2(
 	{
 		throw Capstone2LlvmIrError("Operands loading failed.");
 	}
-
-	if (op1->getType() != op2->getType())
-	{
-		switch (ct)
-		{
-			// TODO: what if types are floating points?
-			case eOpConv::SECOND_SEXT:
-			{
-				op2 = irb.CreateSExtOrTrunc(op2, op1->getType());
-				break;
-			}
-			case eOpConv::SECOND_ZEXT:
-			{
-				op2 = irb.CreateZExtOrTrunc(op2, op1->getType());
-				break;
-			}
-			case eOpConv::NOTHING:
-			{
-				break;
-			}
-			default:
-			case eOpConv::THROW:
-			{
-				throw Capstone2LlvmIrError("Binary operands' types not equal.");
-			}
-		}
-	}
+	op2 = generateTypeConversion(irb, op2, op1->getType(), ct);
 
 	return std::make_pair(op1, op2);
 }
@@ -1342,6 +1254,75 @@ llvm::Function* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::getOrCreateAsmFu
 			insnId,
 			name,
 			llvm::FunctionType::get(retType, params, false));
+}
+
+template <typename CInsn, typename CInsnOp>
+llvm::Value* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::generateTypeConversion(
+		llvm::IRBuilder<>& irb,
+		llvm::Value* from,
+		llvm::Type* to,
+		eOpConv ct)
+{
+	if (from == nullptr)
+	{
+		std::cout << "shit" << std::endl;
+		exit(1);
+	}
+
+	if (to == nullptr || from->getType() == to)
+	{
+		return from;
+	}
+
+	llvm::Value* ret = nullptr;
+
+	switch (ct)
+	{
+		case eOpConv::SEXT_TRUNC:
+		{
+			if (from->getType()->isFloatingPointTy())
+			{
+				ret = irb.CreateFPCast(from, to);
+			}
+			else
+			{
+				ret = irb.CreateSExtOrTrunc(from, to);
+			}
+			break;
+		}
+		case eOpConv::ZEXT_TRUNC:
+		{
+			ret = irb.CreateZExtOrTrunc(from, to);
+			break;
+		}
+		case eOpConv::FP_CAST:
+		{
+			ret = irb.CreateFPCast(from, to);
+			break;
+		}
+		case eOpConv::SITOFP:
+		{
+			ret = irb.CreateSIToFP(from, to);
+			break;
+		}
+		case eOpConv::UITOFP:
+		{
+			ret = irb.CreateUIToFP(from, to);
+			break;
+		}
+		case eOpConv::NOTHING:
+		{
+			ret = from;
+			break;
+		}
+		case eOpConv::THROW:
+		default:
+		{
+			throw Capstone2LlvmIrError("Unhandled eOpConv type.");
+		}
+	}
+
+	return ret;
 }
 
 template class Capstone2LlvmIrTranslator_impl<cs_arm, cs_arm_op>;

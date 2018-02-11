@@ -125,12 +125,6 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 			THROW,
 			/// Operand types does not have to be equal.
 			NOTHING,
-			/// Convert second using SEXT.
-			/// Types must be integer, or LLVM asserts.
-			SECOND_SEXT,
-			/// Convert second using ZEXT.
-			/// Types must be integer, or LLVM asserts.
-			SECOND_ZEXT,
 			/// Convert to destination type using ZEXT or TRUNC.
 			/// Types must be integer, or LLVM asserts.
 			ZEXT_TRUNC,
@@ -148,6 +142,12 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 			/// Source must be integer, destination fp, or LLVM asserts.
 			UITOFP
 		};
+
+		llvm::Value* generateTypeConversion(
+				llvm::IRBuilder<>& irb,
+				llvm::Value* from,
+				llvm::Type* to,
+				eOpConv ct);
 //
 //==============================================================================
 // New implementation-related pure virtual methods.
@@ -256,12 +256,22 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 				llvm::IRBuilder<>& irb,
 				llvm::Type* dstType = nullptr,
 				eOpConv ct = eOpConv::THROW) = 0;
-
 		virtual llvm::Value* loadOp(
 				CInsnOp& op,
 				llvm::IRBuilder<>& irb,
 				llvm::Type* ty = nullptr,
 				bool lea = false) = 0;
+
+		virtual llvm::Instruction* storeRegister(
+				uint32_t r,
+				llvm::Value* val,
+				llvm::IRBuilder<>& irb,
+				eOpConv ct = eOpConv::SEXT_TRUNC) = 0;
+		virtual llvm::Instruction* storeOp(
+				CInsnOp& op,
+				llvm::Value* val,
+				llvm::IRBuilder<>& irb,
+				eOpConv ct = eOpConv::SEXT_TRUNC) = 0;
 
 		llvm::Value* loadOpUnary(
 				CInsn* ci,

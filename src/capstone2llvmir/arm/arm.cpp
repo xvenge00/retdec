@@ -524,48 +524,11 @@ llvm::Instruction* Capstone2LlvmIrTranslatorArm_impl::storeRegister(
 	}
 
 	auto* llvmReg = getRegister(r);
-	auto* regT = getRegisterType(r);
 	if (llvmReg == nullptr)
 	{
 		throw Capstone2LlvmIrError("storeRegister() unhandled reg.");
 	}
-
-	if (val->getType() != llvmReg->getValueType())
-	{
-		switch (ct)
-		{
-			case eOpConv::SEXT_TRUNC:
-			{
-				if (val->getType()->isIntegerTy())
-				{
-					val = irb.CreateSExtOrTrunc(val, regT);
-				}
-				else if (val->getType()->isFloatingPointTy())
-				{
-					val = irb.CreateFPCast(val, regT);
-				}
-				else
-				{
-					assert(false && "unhandled value type");
-				}
-				break;
-			}
-			case eOpConv::ZEXT_TRUNC:
-			{
-				val = irb.CreateZExtOrTrunc(val, regT);
-				break;
-			}
-			case eOpConv::FP_CAST:
-			{
-				val = irb.CreateFPCast(val, regT);
-				break;
-			}
-			default:
-			{
-				throw Capstone2LlvmIrError("Unhandled eOpConv type.");
-			}
-		}
-	}
+	val = generateTypeConversion(irb, val, llvmReg->getValueType(), ct);
 
 	return irb.CreateStore(val, llvmReg);
 }

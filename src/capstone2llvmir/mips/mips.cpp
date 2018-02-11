@@ -568,48 +568,11 @@ llvm::StoreInst* Capstone2LlvmIrTranslatorMips_impl::storeRegister(
 	}
 
 	auto* llvmReg = getRegister(r);
-	auto* regT = getRegisterType(r);
 	if (llvmReg == nullptr)
 	{
 		throw Capstone2LlvmIrError("storeRegister() unhandled reg.");
 	}
-
-	if (val->getType() != llvmReg->getValueType())
-	{
-		switch (ct)
-		{
-			case eOpConv::SEXT_TRUNC:
-			{
-				if (val->getType()->isIntegerTy())
-				{
-					val = irb.CreateSExtOrTrunc(val, regT);
-				}
-				else if (val->getType()->isFloatingPointTy())
-				{
-					val = irb.CreateFPCast(val, regT);
-				}
-				else
-				{
-					assert(false && "unhandled value type");
-				}
-				break;
-			}
-			case eOpConv::ZEXT_TRUNC:
-			{
-				val = irb.CreateZExtOrTrunc(val, regT);
-				break;
-			}
-			case eOpConv::FP_CAST:
-			{
-				val = irb.CreateFPCast(val, regT);
-				break;
-			}
-			default:
-			{
-				throw Capstone2LlvmIrError("Unhandled eOpConv type.");
-			}
-		}
-	}
+	val = generateTypeConversion(irb, val, llvmReg->getValueType(), ct);
 
 	return irb.CreateStore(val, llvmReg);
 }
@@ -702,7 +665,7 @@ bool Capstone2LlvmIrTranslatorMips_impl::isFpInstructionVariant(cs_insn* i)
  */
 void Capstone2LlvmIrTranslatorMips_impl::translateAdd(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::SECOND_SEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::SEXT_TRUNC);
 	auto* add = op1->getType()->isFloatingPointTy()
 			? irb.CreateFAdd(op1, op2)
 			: irb.CreateAdd(op1, op2);
@@ -714,7 +677,7 @@ void Capstone2LlvmIrTranslatorMips_impl::translateAdd(cs_insn* i, cs_mips* mi, l
  */
 void Capstone2LlvmIrTranslatorMips_impl::translateAnd(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::ZEXT_TRUNC);
 	auto* a = irb.CreateAnd(op1, op2);
 	storeOp(mi->operands[0], a, irb);
 }
@@ -1894,7 +1857,7 @@ void Capstone2LlvmIrTranslatorMips_impl::translateNop(cs_insn* i, cs_mips* mi, l
  */
 void Capstone2LlvmIrTranslatorMips_impl::translateNor(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::ZEXT_TRUNC);
 	auto* o = irb.CreateOr(op1, op2);
 	auto* x = irb.CreateXor(o, llvm::ConstantInt::getSigned(o->getType(), -1));
 	storeOp(mi->operands[0], x, irb);
@@ -1905,7 +1868,7 @@ void Capstone2LlvmIrTranslatorMips_impl::translateNor(cs_insn* i, cs_mips* mi, l
  */
 void Capstone2LlvmIrTranslatorMips_impl::translateOr(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::ZEXT_TRUNC);
 	auto* o = irb.CreateOr(op1, op2);
 	storeOp(mi->operands[0], o, irb);
 }
@@ -1915,7 +1878,7 @@ void Capstone2LlvmIrTranslatorMips_impl::translateOr(cs_insn* i, cs_mips* mi, ll
  */
 void Capstone2LlvmIrTranslatorMips_impl::translateRotr(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::ZEXT_TRUNC);
 	op2 = irb.CreateAnd(op2, llvm::ConstantInt::get(op2->getType(), 31)); // low 5 bits
 	auto* lshr = irb.CreateLShr(op1, op2);
 	auto* sub = irb.CreateSub(llvm::ConstantInt::get(op2->getType(), 32), op2);
@@ -1957,7 +1920,7 @@ void Capstone2LlvmIrTranslatorMips_impl::translateSeh(cs_insn* i, cs_mips* mi, l
  */
 void Capstone2LlvmIrTranslatorMips_impl::translateSll(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::ZEXT_TRUNC);
 	auto* shl = irb.CreateShl(op1, op2);
 	storeOp(mi->operands[0], shl, irb);
 }
@@ -1967,7 +1930,7 @@ void Capstone2LlvmIrTranslatorMips_impl::translateSll(cs_insn* i, cs_mips* mi, l
  */
 void Capstone2LlvmIrTranslatorMips_impl::translateSlt(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::SECOND_SEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::SEXT_TRUNC);
 	auto* slt = irb.CreateICmpSLT(op1, op2);
 	slt = irb.CreateZExt(slt, getDefaultType());
 	storeOp(mi->operands[0], slt, irb);
@@ -1978,7 +1941,7 @@ void Capstone2LlvmIrTranslatorMips_impl::translateSlt(cs_insn* i, cs_mips* mi, l
  */
 void Capstone2LlvmIrTranslatorMips_impl::translateSltu(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::SECOND_SEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::SEXT_TRUNC);
 	auto* ult = irb.CreateICmpULT(op1, op2);
 	ult = irb.CreateZExt(ult, getDefaultType());
 	storeOp(mi->operands[0], ult, irb);
@@ -1989,7 +1952,7 @@ void Capstone2LlvmIrTranslatorMips_impl::translateSltu(cs_insn* i, cs_mips* mi, 
  */
 void Capstone2LlvmIrTranslatorMips_impl::translateSra(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::ZEXT_TRUNC);
 	auto* sra = irb.CreateAShr(op1, op2);
 	storeOp(mi->operands[0], sra, irb);
 }
@@ -1999,7 +1962,7 @@ void Capstone2LlvmIrTranslatorMips_impl::translateSra(cs_insn* i, cs_mips* mi, l
  */
 void Capstone2LlvmIrTranslatorMips_impl::translateSrl(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::ZEXT_TRUNC);
 	auto* shr = irb.CreateLShr(op1, op2);
 	storeOp(mi->operands[0], shr, irb);
 }
@@ -2009,7 +1972,7 @@ void Capstone2LlvmIrTranslatorMips_impl::translateSrl(cs_insn* i, cs_mips* mi, l
  */
 void Capstone2LlvmIrTranslatorMips_impl::translateSub(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::SECOND_SEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::SEXT_TRUNC);
 	auto* sub = op1->getType()->isFloatingPointTy()
 			? irb.CreateFSub(op1, op2)
 			: irb.CreateSub(op1, op2);
@@ -2067,7 +2030,7 @@ void Capstone2LlvmIrTranslatorMips_impl::translateWsbh(cs_insn* i, cs_mips* mi, 
  */
 void Capstone2LlvmIrTranslatorMips_impl::translateXor(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(mi, irb, eOpConv::ZEXT_TRUNC);
 	auto* x = irb.CreateXor(op1, op2);
 	storeOp(mi->operands[0], x, irb);
 }

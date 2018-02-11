@@ -100,11 +100,17 @@ class Capstone2LlvmIrTranslatorX86_impl :
 				llvm::Type* ty = nullptr,
 				bool lea = false) override;
 
-		llvm::StoreInst* storeRegister(
+		virtual llvm::StoreInst* storeRegister(
 				uint32_t r,
 				llvm::Value* val,
 				llvm::IRBuilder<>& irb,
-				eOpConv ct = eOpConv::ZEXT_TRUNC);
+				eOpConv ct = eOpConv::ZEXT_TRUNC) override;
+		virtual llvm::Instruction* storeOp(
+				cs_x86_op& op,
+				llvm::Value* val,
+				llvm::IRBuilder<>& irb,
+				eOpConv ct = eOpConv::ZEXT_TRUNC) override;
+
 		void storeRegisters(
 				llvm::IRBuilder<>& irb,
 				const std::vector<std::pair<uint32_t, llvm::Value*>>& regs);
@@ -144,22 +150,10 @@ class Capstone2LlvmIrTranslatorX86_impl :
 				cs_x86* xi,
 				llvm::IRBuilder<>& irb);
 
-		llvm::Instruction* storeOp(
-				cs_x86_op& op,
-				llvm::Value* val,
-				llvm::IRBuilder<>& irb,
-				eOpConv ct = eOpConv::ZEXT_TRUNC,
-				bool fp = false);
-		llvm::Instruction* storeOpFloat(
-				cs_x86_op& op,
-				llvm::Value* val,
-				llvm::IRBuilder<>& irb,
-				eOpConv ct = eOpConv::FP_CAST);
-
 		llvm::Value* generateZeroFlag(llvm::Value* val, llvm::IRBuilder<>& irb);
 		llvm::Value* generateSignFlag(llvm::Value* val, llvm::IRBuilder<>& irb);
 		llvm::Value* generateParityFlag(llvm::Value* val, llvm::IRBuilder<>& irb);
-		void genSetSflags(
+		void generateSetSflags(
 				llvm::Value* val,
 				llvm::IRBuilder<>& irb);
 
