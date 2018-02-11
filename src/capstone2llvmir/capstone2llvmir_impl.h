@@ -27,6 +27,7 @@ namespace capstone2llvmir {
  * - Adds more implementation-related pure virtual methods that must be
  *   implemented in the concrete translator classes.
  */
+template <typename CInsn, typename CInsnOp>
 class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 {
 	public:
@@ -200,18 +201,6 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 		virtual void translateInstruction(
 				cs_insn* i,
 				llvm::IRBuilder<>& irb) = 0;
-
-		/**
-		 * Load LLVM register corresponding to Capstone register @p r, using
-		 * instruction builder @irb. Optionally convert the loaded value to
-		 * type @p dstType using cast type @p ct.
-		 * @return Loaded value.
-		 */
-		virtual llvm::Value* loadRegister(
-				uint32_t r,
-				llvm::IRBuilder<>& irb,
-				llvm::Type* dstType = nullptr,
-				eOpConv ct = eOpConv::THROW) = 0;
 //
 //==============================================================================
 // Virtual translation initialization and environment generation methods.
@@ -251,6 +240,60 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 				llvm::GlobalValue::LinkageTypes lt =
 						llvm::GlobalValue::LinkageTypes::InternalLinkage,
 				llvm::Constant* initializer = nullptr);
+//
+//==============================================================================
+// Load/store methods.
+//==============================================================================
+//
+		/**
+		 * Load LLVM register corresponding to Capstone register @p r, using
+		 * instruction builder @irb. Optionally convert the loaded value to
+		 * type @p dstType using cast type @p ct.
+		 * @return Loaded value.
+		 */
+		virtual llvm::Value* loadRegister(
+				uint32_t r,
+				llvm::IRBuilder<>& irb,
+				llvm::Type* dstType = nullptr,
+				eOpConv ct = eOpConv::THROW) = 0;
+
+		virtual llvm::Value* loadOp(
+				CInsnOp& op,
+				llvm::IRBuilder<>& irb,
+				llvm::Type* ty = nullptr,
+				bool lea = false) = 0;
+
+		llvm::Value* loadOpUnary(
+				CInsn* ci,
+				llvm::IRBuilder<>& irb,
+				llvm::Type* dstType = nullptr,
+				eOpConv ct = eOpConv::THROW,
+				llvm::Type* loadType = nullptr);
+
+		std::pair<llvm::Value*, llvm::Value*> loadOpBinary(
+				CInsn* ci,
+				llvm::IRBuilder<>& irb,
+				eOpConv ct = eOpConv::NOTHING);
+		llvm::Value* loadOpBinaryOp0(
+				CInsn* ci,
+				llvm::IRBuilder<>& irb,
+				llvm::Type* ty = nullptr);
+		llvm::Value* loadOpBinaryOp1(
+				CInsn* ci,
+				llvm::IRBuilder<>& irb,
+				llvm::Type* ty = nullptr);
+
+		std::tuple<llvm::Value*, llvm::Value*, llvm::Value*> loadOpTernary(
+				CInsn* ci,
+				llvm::IRBuilder<>& irb);
+		std::pair<llvm::Value*, llvm::Value*> loadOpTernaryOp1Op2(
+				CInsn* ai,
+				llvm::IRBuilder<>& irb,
+				eOpConv ct = eOpConv::NOTHING);
+
+		std::tuple<llvm::Value*, llvm::Value*, llvm::Value*> loadOpQuaternaryOp1Op2Op3(
+				CInsn* ai,
+				llvm::IRBuilder<>& irb);
 //
 //==============================================================================
 // Carry/overflow/borrow add/sub generation routines.

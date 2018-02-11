@@ -990,8 +990,8 @@ llvm::CallInst* Capstone2LlvmIrTranslatorX86_impl::loadX87TagReg(
 llvm::Value* Capstone2LlvmIrTranslatorX86_impl::loadOp(
 		cs_x86_op& op,
 		llvm::IRBuilder<>& irb,
-		bool lea,
-		bool fp)
+		llvm::Type* ty,
+		bool lea)
 {
 	switch (op.type)
 	{
@@ -1062,7 +1062,7 @@ llvm::Value* Capstone2LlvmIrTranslatorX86_impl::loadOp(
 			}
 			else
 			{
-				llvm::Type* t = fp
+				llvm::Type* t = ty && ty->isFloatingPointTy()
 						? getFloatTypeFromByteSize(_module, op.size)
 						: getIntegerTypeFromByteSize(_module, op.size);
 				auto* pt = llvm::PointerType::get(t, 0);
@@ -1079,138 +1079,7 @@ llvm::Value* Capstone2LlvmIrTranslatorX86_impl::loadOp(
 	}
 }
 
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::loadOpUnary(
-		cs_x86* xi,
-		llvm::IRBuilder<>& irb,
-		llvm::Type* dstType,
-		eOpConv ct,
-		bool fp)
-{
-	if (xi->op_count != 1)
-	{
-		throw Capstone2LlvmIrError("This is not an unary instruction.");
-	}
-
-	auto* op = loadOp(xi->operands[0], irb, false, fp);
-	if (dstType == nullptr || op->getType() == dstType)
-	{
-		return op;
-	}
-
-	switch (ct)
-	{
-		case eOpConv::ZEXT_TRUNC:
-		{
-			op = irb.CreateZExtOrTrunc(op, dstType);
-			break;
-		}
-		case eOpConv::FP_CAST:
-		{
-			op = irb.CreateFPCast(op, dstType);
-			break;
-		}
-		case eOpConv::SITOFP:
-		{
-			op = irb.CreateSIToFP(op, dstType);
-			break;
-		}
-		case eOpConv::UITOFP:
-		{
-			op = irb.CreateUIToFP(op, dstType);
-			break;
-		}
-		case eOpConv::NOTHING:
-		{
-			break;
-		}
-		case eOpConv::THROW:
-		default:
-		{
-			throw Capstone2LlvmIrError("Type of reg load not equal dst type.");
-		}
-	}
-
-	return op;
-}
-
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::loadOpUnaryFloat(
-		cs_x86* xi,
-		llvm::IRBuilder<>& irb,
-		llvm::Type* dstType,
-		eOpConv ct)
-{
-	return loadOpUnary(xi, irb, dstType, ct, true);
-}
-
-std::pair<llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorX86_impl::loadOpBinary(
-		cs_x86* xi,
-		llvm::IRBuilder<>& irb,
-		eOpConv ct)
-{
-	if (xi->op_count != 2)
-	{
-		throw Capstone2LlvmIrError("This is not a binary instruction.");
-	}
-
-	auto* op0 = loadOp(xi->operands[0], irb);
-	auto* op1 = loadOp(xi->operands[1], irb);
-	if (op0 == nullptr || op1 == nullptr)
-	{
-		throw Capstone2LlvmIrError("Operands loading failed.");
-	}
-
-	if (op0->getType() == op1->getType())
-	{
-		return {op0, op1};
-	}
-
-	switch (ct)
-	{
-		case eOpConv::SECOND_SEXT:
-		{
-			op1 = irb.CreateSExtOrTrunc(op1, op0->getType());
-			break;
-		}
-		case eOpConv::SECOND_ZEXT:
-		{
-			op1 = irb.CreateZExtOrTrunc(op1, op0->getType());
-			break;
-		}
-		case eOpConv::NOTHING:
-		{
-			break;
-		}
-		default:
-		case eOpConv::THROW:
-		{
-			throw Capstone2LlvmIrError("Binary operands' types not equal.");
-		}
-	}
-
-	return {op0, op1};
-}
-
-std::tuple<llvm::Value*, llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorX86_impl::loadOpTernary(
-		cs_x86* xi,
-		llvm::IRBuilder<>& irb)
-{
-	if (xi->op_count != 3)
-	{
-		throw Capstone2LlvmIrError("This is not a binary instruction.");
-	}
-
-	auto* op0 = loadOp(xi->operands[0], irb);
-	auto* op1 = loadOp(xi->operands[1], irb);
-	auto* op2 = loadOp(xi->operands[2], irb);
-	if (op0 == nullptr || op1 == nullptr || op2 == nullptr)
-	{
-		throw Capstone2LlvmIrError("Operands loading failed.");
-	}
-
-	return std::make_tuple(op0, op1, op2);
-}
-
-llvm::Instruction* Capstone2LlvmIrTranslatorX86_impl::setOp(
+llvm::Instruction* Capstone2LlvmIrTranslatorX86_impl::storeOp(
 		cs_x86_op& op,
 		llvm::Value* val,
 		llvm::IRBuilder<>& irb,
@@ -1291,7 +1160,7 @@ llvm::Instruction* Capstone2LlvmIrTranslatorX86_impl::setOp(
 						val = irb.CreateFPCast(val, tt);
 						break;
 					default:
-						throw Capstone2LlvmIrError("Conversion unsupported by setOp()");
+						throw Capstone2LlvmIrError("Conversion unsupported by storeOp()");
 
 				}
 			}
@@ -1310,13 +1179,13 @@ llvm::Instruction* Capstone2LlvmIrTranslatorX86_impl::setOp(
 	}
 }
 
-llvm::Instruction* Capstone2LlvmIrTranslatorX86_impl::setOpFloat(
+llvm::Instruction* Capstone2LlvmIrTranslatorX86_impl::storeOpFloat(
 		cs_x86_op& op,
 		llvm::Value* val,
 		llvm::IRBuilder<>& irb,
 		eOpConv ct)
 {
-	return setOp(op, val, irb, ct, true);
+	return storeOp(op, val, irb, ct, true);
 }
 
 llvm::Value* Capstone2LlvmIrTranslatorX86_impl::generateZeroFlag(
@@ -1372,7 +1241,7 @@ void Capstone2LlvmIrTranslatorX86_impl::genSetSflags(
  * NB - not below
  * NC - not carry
  */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcAE(llvm::IRBuilder<>& irb)
+llvm::Value* Capstone2LlvmIrTranslatorX86_impl::generateCcAE(llvm::IRBuilder<>& irb)
 {
 	auto* cf = loadRegister(X86_REG_CF, irb);
 	return irb.CreateICmpEQ(cf, irb.getInt1(false));
@@ -1383,7 +1252,7 @@ llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcAE(llvm::IRBuilder<>& irb)
  * A - above
  * NBE - not below or equal
  */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcA(llvm::IRBuilder<>& irb)
+llvm::Value* Capstone2LlvmIrTranslatorX86_impl::generateCcA(llvm::IRBuilder<>& irb)
 {
 	auto* cf = loadRegister(X86_REG_CF, irb);
 	auto* zf = loadRegister(X86_REG_ZF, irb);
@@ -1396,7 +1265,7 @@ llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcA(llvm::IRBuilder<>& irb)
  * BE - below or equal
  * NA - not above
  */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcBE(llvm::IRBuilder<>& irb)
+llvm::Value* Capstone2LlvmIrTranslatorX86_impl::generateCcBE(llvm::IRBuilder<>& irb)
 {
 	auto* cf = loadRegister(X86_REG_CF, irb);
 	auto* zf = loadRegister(X86_REG_ZF, irb);
@@ -1409,7 +1278,7 @@ llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcBE(llvm::IRBuilder<>& irb)
  * C - carry
  * NAE - not above or equal
  */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcB(llvm::IRBuilder<>& irb)
+llvm::Value* Capstone2LlvmIrTranslatorX86_impl::generateCcB(llvm::IRBuilder<>& irb)
 {
 	return loadRegister(X86_REG_CF, irb);
 }
@@ -1419,7 +1288,7 @@ llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcB(llvm::IRBuilder<>& irb)
  * E - equal
  * Z - zero
  */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcE(llvm::IRBuilder<>& irb)
+llvm::Value* Capstone2LlvmIrTranslatorX86_impl::generateCcE(llvm::IRBuilder<>& irb)
 {
 	return loadRegister(X86_REG_ZF, irb);
 }
@@ -1429,7 +1298,7 @@ llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcE(llvm::IRBuilder<>& irb)
  * GE - greater or equal
  * NL - not less
  */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcGE(llvm::IRBuilder<>& irb)
+llvm::Value* Capstone2LlvmIrTranslatorX86_impl::generateCcGE(llvm::IRBuilder<>& irb)
 {
 	auto* sf = loadRegister(X86_REG_SF, irb);
 	auto* of = loadRegister(X86_REG_OF, irb);
@@ -1441,7 +1310,7 @@ llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcGE(llvm::IRBuilder<>& irb)
  * G - greater
  * NLE - not less or equal
  */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcG(llvm::IRBuilder<>& irb)
+llvm::Value* Capstone2LlvmIrTranslatorX86_impl::generateCcG(llvm::IRBuilder<>& irb)
 {
 	auto* zf = loadRegister(X86_REG_ZF, irb);
 	auto* sf = loadRegister(X86_REG_SF, irb);
@@ -1456,7 +1325,7 @@ llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcG(llvm::IRBuilder<>& irb)
  * LE - less or equal
  * NG - not greater
  */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcLE(llvm::IRBuilder<>& irb)
+llvm::Value* Capstone2LlvmIrTranslatorX86_impl::generateCcLE(llvm::IRBuilder<>& irb)
 {
 	auto* zf = loadRegister(X86_REG_ZF, irb);
 	auto* sf = loadRegister(X86_REG_SF, irb);
@@ -1470,7 +1339,7 @@ llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcLE(llvm::IRBuilder<>& irb)
  * L - less
  * NGE - not greater or equal
  */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcL(llvm::IRBuilder<>& irb)
+llvm::Value* Capstone2LlvmIrTranslatorX86_impl::generateCcL(llvm::IRBuilder<>& irb)
 {
 	auto* sf = loadRegister(X86_REG_SF, irb);
 	auto* of = loadRegister(X86_REG_OF, irb);
@@ -1482,7 +1351,7 @@ llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcL(llvm::IRBuilder<>& irb)
  * NE - not equal
  * NZ - not zero
  */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcNE(llvm::IRBuilder<>& irb)
+llvm::Value* Capstone2LlvmIrTranslatorX86_impl::generateCcNE(llvm::IRBuilder<>& irb)
 {
 	auto* zf = loadRegister(X86_REG_ZF, irb);
 	return irb.CreateICmpEQ(zf, irb.getInt1(false));
@@ -1492,7 +1361,7 @@ llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcNE(llvm::IRBuilder<>& irb)
  * OF == 0
  * NO - not overflow
  */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcNO(llvm::IRBuilder<>& irb)
+llvm::Value* Capstone2LlvmIrTranslatorX86_impl::generateCcNO(llvm::IRBuilder<>& irb)
 {
 	auto* of = loadRegister(X86_REG_OF, irb);
 	return irb.CreateICmpEQ(of, irb.getInt1(false));
@@ -1503,7 +1372,7 @@ llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcNO(llvm::IRBuilder<>& irb)
  * NP - not parity
  * PO - parity odd
  */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcNP(llvm::IRBuilder<>& irb)
+llvm::Value* Capstone2LlvmIrTranslatorX86_impl::generateCcNP(llvm::IRBuilder<>& irb)
 {
 	auto* pf = loadRegister(X86_REG_PF, irb);
 	return irb.CreateICmpEQ(pf, irb.getInt1(false));
@@ -1513,7 +1382,7 @@ llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcNP(llvm::IRBuilder<>& irb)
  * SF == 0
  * NS - not sign
  */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcNS(llvm::IRBuilder<>& irb)
+llvm::Value* Capstone2LlvmIrTranslatorX86_impl::generateCcNS(llvm::IRBuilder<>& irb)
 {
 	auto* sf = loadRegister(X86_REG_SF, irb);
 	return irb.CreateICmpEQ(sf, irb.getInt1(false));
@@ -1523,7 +1392,7 @@ llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcNS(llvm::IRBuilder<>& irb)
  * OF == 1
  * O - overflow
  */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcO(llvm::IRBuilder<>& irb)
+llvm::Value* Capstone2LlvmIrTranslatorX86_impl::generateCcO(llvm::IRBuilder<>& irb)
 {
 	return loadRegister(X86_REG_OF, irb);
 }
@@ -1533,7 +1402,7 @@ llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcO(llvm::IRBuilder<>& irb)
  * P - parity
  * PE - parity even
  */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcP(llvm::IRBuilder<>& irb)
+llvm::Value* Capstone2LlvmIrTranslatorX86_impl::generateCcP(llvm::IRBuilder<>& irb)
 {
 	return loadRegister(X86_REG_PF, irb);
 }
@@ -1542,7 +1411,7 @@ llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcP(llvm::IRBuilder<>& irb)
  * SF == 1
  * S - sign
  */
-llvm::Value* Capstone2LlvmIrTranslatorX86_impl::genCcS(llvm::IRBuilder<>& irb)
+llvm::Value* Capstone2LlvmIrTranslatorX86_impl::generateCcS(llvm::IRBuilder<>& irb)
 {
 	return loadRegister(X86_REG_SF, irb);
 }
@@ -1712,7 +1581,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateAdc(cs_insn* i, cs_x86* xi, llv
 				{X86_REG_OF, generateOverflowAddC(add, op0, op1, irb, cf)}});
 	}
 	storeRegister(cfReg, generateCarryAddC(op0, op1, irb, cf), irb);
-	setOp(xi->operands[0], add, irb);
+	storeOp(xi->operands[0], add, irb);
 }
 
 /**
@@ -1728,10 +1597,10 @@ void Capstone2LlvmIrTranslatorX86_impl::translateAdd(cs_insn* i, cs_x86* xi, llv
 			{X86_REG_AF, generateCarryAddInt4(op0, op1, irb)},
 			{X86_REG_CF, generateCarryAdd(add, op0, irb)},
 			{X86_REG_OF, generateOverflowAdd(add, op0, op1, irb)}});
-	setOp(xi->operands[0], add, irb);
+	storeOp(xi->operands[0], add, irb);
 	if (i->id == X86_INS_XADD)
 	{
-		setOp(xi->operands[1], op0, irb);
+		storeOp(xi->operands[1], op0, irb);
 	}
 }
 
@@ -1750,7 +1619,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateAnd(cs_insn* i, cs_x86* xi, llv
 			{X86_REG_OF, irb.getInt1(false)}}); // cleared
 	if (i->id == X86_INS_AND)
 	{
-		setOp(xi->operands[0], andOp, irb);
+		storeOp(xi->operands[0], andOp, irb);
 	}
 }
 
@@ -1778,7 +1647,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateBsf(cs_insn* i, cs_x86* xi, llv
 	auto* rv = irb.CreateSelect(eqz, op0, c); // true => undef
 
 	storeRegister(X86_REG_ZF, zf, irb);
-	setOp(xi->operands[0], rv, irb);
+	storeOp(xi->operands[0], rv, irb);
 }
 
 /**
@@ -1794,7 +1663,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateBswap(cs_insn* i, cs_x86* xi, l
 
 	auto* c = irb.CreateCall(f, {op0});
 
-	setOp(xi->operands[0], c, irb);
+	storeOp(xi->operands[0], c, irb);
 }
 
 /**
@@ -1831,7 +1700,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateBtc(cs_insn* i, cs_x86* xi, llv
 	auto* xor2 = irb.CreateXor(and1, llvm::ConstantInt::get(and1->getType(), 1));
 	auto* shl2 = irb.CreateShl(xor2, op1);
 	auto* or1 = irb.CreateOr(shl2, and2);
-	setOp(xi->operands[0], or1, irb);
+	storeOp(xi->operands[0], or1, irb);
 }
 
 /**
@@ -1849,7 +1718,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateBtr(cs_insn* i, cs_x86* xi, llv
 
 	auto* xor1 = irb.CreateXor(shl, llvm::ConstantInt::get(shl->getType(), -1, true));
 	auto* and2 = irb.CreateAnd(op0, xor1);
-	setOp(xi->operands[0], and2, irb);
+	storeOp(xi->operands[0], and2, irb);
 }
 
 /**
@@ -1866,7 +1735,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateBts(cs_insn* i, cs_x86* xi, llv
 	storeRegister(X86_REG_CF, icmp, irb);
 
 	auto* or1 = irb.CreateOr(shl, op0);
-	setOp(xi->operands[0], or1, irb);
+	storeOp(xi->operands[0], or1, irb);
 }
 
 /**
@@ -1992,7 +1861,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateCmpxchg(cs_insn* i, cs_x86* xi,
 	auto* zf = loadRegister(X86_REG_ZF, irb);
 	auto* op0Val = irb.CreateSelect(zf, op1, op0);
 	auto* accumVal = irb.CreateSelect(zf, accum, op0);
-	setOp(xi->operands[0], op0Val, irb);
+	storeOp(xi->operands[0], op0Val, irb);
 	storeRegister(getAccumulatorRegister(xi->operands[0].size), accumVal, irb);
 }
 
@@ -2016,7 +1885,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateCmpxchg8b(cs_insn* i, cs_x86* x
 	auto* ebx = loadRegister(X86_REG_EBX, bodyIf, op0->getType(), eOpConv::ZEXT_TRUNC);
 	ecx = bodyIf.CreateShl(ecx, 32);
 	auto* res = bodyIf.CreateOr(ecx, ebx);
-	setOp(xi->operands[0], res, bodyIf);
+	storeOp(xi->operands[0], res, bodyIf);
 
 	storeRegister(X86_REG_ZF, bodyElse.getInt1(false), bodyElse);
 	auto* low = bodyElse.CreateTrunc(op0, eax->getType());
@@ -2045,7 +1914,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateCmpxchg16b(cs_insn* i, cs_x86* 
 	auto* rbx = loadRegister(X86_REG_RBX, bodyIf, op0->getType(), eOpConv::ZEXT_TRUNC);
 	rcx = bodyIf.CreateShl(rcx, 64);
 	auto* res = bodyIf.CreateOr(rcx, rbx);
-	setOp(xi->operands[0], res, bodyIf);
+	storeOp(xi->operands[0], res, bodyIf);
 
 	storeRegister(X86_REG_ZF, bodyElse.getInt1(false), bodyElse);
 	auto* low = bodyElse.CreateTrunc(op0, rax->getType());
@@ -2068,7 +1937,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateDec(cs_insn* i, cs_x86* xi, llv
 			{X86_REG_AF, generateBorrowSubInt4(op0, op1, irb)},
 			// CF not changed.
 			{X86_REG_OF, generateOverflowSub(sub, op0, op1, irb)}});
-	setOp(xi->operands[0], sub, irb);
+	storeOp(xi->operands[0], sub, irb);
 }
 
 /**
@@ -2091,7 +1960,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateImul(cs_insn* i, cs_x86* xi, ll
 		op0 = irb.CreateSExt(op0, doubleT);
 		op1 = irb.CreateSExt(op1, doubleT);
 		auto* mul = irb.CreateMul(op0, op1);
-		setOp(xi->operands[0], mul, irb);
+		storeOp(xi->operands[0], mul, irb);
 
 		auto* trunc = irb.CreateTrunc(mul, origType);
 		auto* sext = irb.CreateSExt(trunc, doubleT);
@@ -2109,7 +1978,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateImul(cs_insn* i, cs_x86* xi, ll
 		op1 = irb.CreateSExt(op1, doubleT);
 		op2 = irb.CreateSExt(op2, doubleT);
 		auto* mul = irb.CreateMul(op1, op2);
-		setOp(xi->operands[0], mul, irb);
+		storeOp(xi->operands[0], mul, irb);
 
 		auto* trunc = irb.CreateTrunc(mul, op0->getType());
 		auto* sext = irb.CreateSExt(trunc, doubleT);
@@ -2137,7 +2006,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateInc(cs_insn* i, cs_x86* xi, llv
 			{X86_REG_AF, generateCarryAddInt4(op0, op1, irb)},
 			// CF not changed.
 			{X86_REG_OF, generateOverflowAdd(add, op0, op1, irb)}});
-	setOp(xi->operands[0], add, irb);
+	storeOp(xi->operands[0], add, irb);
 }
 
 /**
@@ -2244,7 +2113,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateLjmp(cs_insn* i, cs_x86* xi, ll
 	if (xi->op_count == 1)
 	{
 		// Same/similar to translateLoadFarPtr().
-		op0 = loadOp(xi->operands[0], irb, true);
+		op0 = loadOp(xi->operands[0], irb, nullptr, true);
 
 		auto* it1 = getIntegerTypeFromByteSize(_module, xi->operands[0].size);
 		auto* pt1 = llvm::PointerType::get(it1, 0);
@@ -2363,11 +2232,11 @@ void Capstone2LlvmIrTranslatorX86_impl::translateLahf(cs_insn* i, cs_x86* xi, ll
  */
 void Capstone2LlvmIrTranslatorX86_impl::translateLea(cs_insn* i, cs_x86* xi, llvm::IRBuilder<>& irb)
 {
-	op1 = loadOp(xi->operands[1], irb, true);
+	op1 = loadOp(xi->operands[1], irb, nullptr, true);
 	// In specification, there are op size/addr size tables of actions based on
 	// different bit sizes -- zero extends, truncates.
-	// I think setOp() -> storeRegister() will take of it automatically.
-	setOp(xi->operands[0], op1, irb);
+	// I think storeOp() -> storeRegister() will take of it automatically.
+	storeOp(xi->operands[0], op1, irb);
 }
 
 /**
@@ -2424,7 +2293,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateLeave(cs_insn* i, cs_x86* xi, l
 void Capstone2LlvmIrTranslatorX86_impl::translateLoadFarPtr(cs_insn* i, cs_x86* xi, llvm::IRBuilder<>& irb)
 {
 	assert(xi->op_count == 2);
-	op1 = loadOp(xi->operands[1], irb, true);
+	op1 = loadOp(xi->operands[1], irb, nullptr, true);
 
 	auto* it1 = getIntegerTypeFromByteSize(_module, xi->operands[1].size);
 	auto* pt1 = llvm::PointerType::get(it1, 0);
@@ -2450,7 +2319,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateLoadFarPtr(cs_insn* i, cs_x86* 
 	}
 
 	storeRegister(segR, l2, irb);
-	setOp(xi->operands[0], l1, irb);
+	storeOp(xi->operands[0], l1, irb);
 }
 
 /**
@@ -2471,15 +2340,15 @@ void Capstone2LlvmIrTranslatorX86_impl::translateMov(cs_insn* i, cs_x86* xi, llv
 	{
 		case X86_INS_MOV:
 		case X86_INS_MOVABS:
-//			setOp(xi->operands[0], op1, irb, eOpConv::THROW);
-			setOp(xi->operands[0], op1, irb, eOpConv::ZEXT_TRUNC);
+//			storeOp(xi->operands[0], op1, irb, eOpConv::THROW);
+			storeOp(xi->operands[0], op1, irb, eOpConv::ZEXT_TRUNC);
 			break;
 		case X86_INS_MOVSX:
 		case X86_INS_MOVSXD:
-			setOp(xi->operands[0], op1, irb, eOpConv::SEXT_TRUNC);
+			storeOp(xi->operands[0], op1, irb, eOpConv::SEXT_TRUNC);
 			break;
 		case X86_INS_MOVZX:
-			setOp(xi->operands[0], op1, irb, eOpConv::ZEXT_TRUNC);
+			storeOp(xi->operands[0], op1, irb, eOpConv::ZEXT_TRUNC);
 			break;
 		default:
 			throw Capstone2LlvmIrError("Unhandle instr ID in translateMov().");
@@ -2576,7 +2445,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateNeg(cs_insn* i, cs_x86* xi, llv
 			{X86_REG_AF, generateBorrowSubInt4(zero, op0, irb)},
 			{X86_REG_CF, irb.CreateICmpNE(op0, zero)},
 			{X86_REG_OF, zero}});
-	setOp(xi->operands[0], sub, irb);
+	storeOp(xi->operands[0], sub, irb);
 }
 
 /**
@@ -2663,7 +2532,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateNot(cs_insn* i, cs_x86* xi, llv
 
 	auto* xorOp = irb.CreateXor(op0, negativeOne);
 
-	setOp(xi->operands[0], xorOp, irb);
+	storeOp(xi->operands[0], xorOp, irb);
 }
 
 /**
@@ -2679,7 +2548,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateOr(cs_insn* i, cs_x86* xi, llvm
 			{X86_REG_AF, irb.getInt1(false)},   // undef
 			{X86_REG_CF, irb.getInt1(false)},   // cleared
 			{X86_REG_OF, irb.getInt1(false)}}); // cleared
-	setOp(xi->operands[0], orOp, irb);
+	storeOp(xi->operands[0], orOp, irb);
 }
 
 /**
@@ -2694,7 +2563,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translatePop(cs_insn* i, cs_x86* xi, llv
 	auto* pt = llvm::PointerType::get(it, 0);
 	auto* addr = irb.CreateIntToPtr(sp, pt);
 	auto* l = irb.CreateLoad(addr);
-	setOp(xi->operands[0], l, irb);
+	storeOp(xi->operands[0], l, irb);
 
 	auto* ci = llvm::ConstantInt::get(sp->getType(), xi->operands[0].size);
 	auto* add = irb.CreateAdd(sp, ci);
@@ -3068,7 +2937,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateSbb(cs_insn* i, cs_x86* xi, llv
 			{X86_REG_AF, generateBorrowSubCInt4(op0, op1, irb)},
 			{X86_REG_CF, generateBorrowSubC(sub1, op0, op1, irb)}, // Really sub1.
 			{X86_REG_OF, generateOverflowSubC(sub1, op0, op1, irb)}}); // Really sub1.
-	setOp(xi->operands[0], sub, irb);
+	storeOp(xi->operands[0], sub, irb);
 }
 
 /**
@@ -3103,7 +2972,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateShiftLeft(cs_insn* i, cs_x86* x
 
 	auto* shl = bodyIrb.CreateShl(op0, op1);
 	genSetSflags(shl, bodyIrb);
-	setOp(xi->operands[0], shl, bodyIrb);
+	storeOp(xi->operands[0], shl, bodyIrb);
 
 	auto* cfOp1 = bodyIrb.CreateSub(op1, llvm::ConstantInt::get(op1->getType(), 1));
 	auto* cfShl = bodyIrb.CreateShl(op0, cfOp1);
@@ -3146,7 +3015,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateShiftRight(cs_insn* i, cs_x86* 
 			? bodyIrb.CreateLShr(op0, op1)  // X86_INS_SHR
 			: bodyIrb.CreateAShr(op0, op1); // X86_INS_SAR
 	genSetSflags(shift, bodyIrb);
-	setOp(xi->operands[0], shift, bodyIrb);
+	storeOp(xi->operands[0], shift, bodyIrb);
 	auto* cfOp1 = bodyIrb.CreateSub(op1, llvm::ConstantInt::get(op1->getType(), 1));
 	auto* cfShl = bodyIrb.CreateShl(llvm::ConstantInt::get(cfOp1->getType(), 1), cfOp1);
 	auto* cfAnd = bodyIrb.CreateAnd(cfShl, op0);
@@ -3193,7 +3062,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateShld(cs_insn* i, cs_x86* xi, ll
 	auto* srl = bodyIrb.CreateLShr(op1, sub);
 	auto* orr = bodyIrb.CreateOr(srl, shl);
 	genSetSflags(orr, bodyIrb);
-	setOp(xi->operands[0], orr, bodyIrb);
+	storeOp(xi->operands[0], orr, bodyIrb);
 
 	auto* subCf = bodyIrb.CreateSub(op2, llvm::ConstantInt::get(op2->getType(), 1));
 	auto* shlCf = bodyIrb.CreateShl(op0, subCf);
@@ -3235,7 +3104,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateShrd(cs_insn* i, cs_x86* xi, ll
 	auto* shl = bodyIrb.CreateShl(op1, sub);
 	auto* orr = bodyIrb.CreateOr(shl, lshr);
 	genSetSflags(orr, bodyIrb);
-	setOp(xi->operands[0], orr, bodyIrb);
+	storeOp(xi->operands[0], orr, bodyIrb);
 
 	auto* subCf = bodyIrb.CreateSub(op2, llvm::ConstantInt::get(op2->getType(), 1));
 	auto* shlCf = bodyIrb.CreateShl(llvm::ConstantInt::get(subCf->getType(), 1), subCf);
@@ -3279,7 +3148,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateRcr(cs_insn* i, cs_x86* xi, llv
 	auto* or1 = bodyIrb.CreateOr(shl, srlZext);
 	auto* or2 = bodyIrb.CreateOr(or1, shl2Zext);
 	auto* or2Trunc = bodyIrb.CreateTrunc(or2, op0->getType());
-	setOp(xi->operands[0], or2Trunc, bodyIrb);
+	storeOp(xi->operands[0], or2Trunc, bodyIrb);
 
 	auto* sub3 = bodyIrb.CreateSub(op1, llvm::ConstantInt::get(op1->getType(), 1));
 	auto* shl3 = bodyIrb.CreateShl(llvm::ConstantInt::get(sub3->getType(), 1), sub3);
@@ -3324,7 +3193,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateRcl(cs_insn* i, cs_x86* xi, llv
 	auto* or1 = bodyIrb.CreateOr(srl, shlZext);
 	auto* or2 = bodyIrb.CreateOr(or1, shl2Zext);
 	auto* or2Trunc = bodyIrb.CreateTrunc(or2, op0->getType());
-	setOp(xi->operands[0], or2Trunc, bodyIrb);
+	storeOp(xi->operands[0], or2Trunc, bodyIrb);
 
 	auto* shl3 = bodyIrb.CreateShl(op0, sub2);
 	auto* srl2 = bodyIrb.CreateLShr(shl3, llvm::ConstantInt::get(shl3->getType(), op0BitW - 1));
@@ -3358,7 +3227,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateRol(cs_insn* i, cs_x86* xi, llv
 	auto* srl = bodyIrb.CreateLShr(op0, sub);
 	auto* orr = bodyIrb.CreateOr(srl, shl);
 
-	setOp(xi->operands[0], orr, bodyIrb);
+	storeOp(xi->operands[0], orr, bodyIrb);
 
 	auto* and1 = bodyIrb.CreateAnd(orr, llvm::ConstantInt::get(orr->getType(), 1));
 	auto* cfIcmp = bodyIrb.CreateICmpNE(and1, llvm::ConstantInt::get(orr->getType(), 0));
@@ -3390,7 +3259,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateRor(cs_insn* i, cs_x86* xi, llv
 	auto* sub = bodyIrb.CreateSub(llvm::ConstantInt::get(op1->getType(), op0BitW), op1);
 	auto* shl = bodyIrb.CreateShl(op0, sub);
 	auto* orr = bodyIrb.CreateOr(srl, shl);
-	setOp(xi->operands[0], orr, bodyIrb);
+	storeOp(xi->operands[0], orr, bodyIrb);
 
 	auto* cfSrl = bodyIrb.CreateLShr(orr, llvm::ConstantInt::get(orr->getType(), op0BitW - 1));
 	auto* cfIcmp = bodyIrb.CreateICmpNE(cfSrl, llvm::ConstantInt::get(cfSrl->getType(), 0));
@@ -3438,7 +3307,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateSub(cs_insn* i, cs_x86* xi, llv
 			{X86_REG_OF, generateOverflowSub(sub, op0, op1, irb)}});
 	if (i->id == X86_INS_SUB)
 	{
-		setOp(xi->operands[0], sub, irb);
+		storeOp(xi->operands[0], sub, irb);
 	}
 }
 
@@ -3463,8 +3332,8 @@ void Capstone2LlvmIrTranslatorX86_impl::translateXchg(cs_insn* i, cs_x86* xi, ll
 		return;
 	}
 
-	setOp(xi->operands[0], op1, irb);
-	setOp(xi->operands[1], op0, irb);
+	storeOp(xi->operands[0], op1, irb);
+	storeOp(xi->operands[1], op0, irb);
 }
 
 /**
@@ -3505,7 +3374,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateXor(cs_insn* i, cs_x86* xi, llv
 			{X86_REG_CF, irb.getInt1(false)},   // cleared
 			{X86_REG_OF, irb.getInt1(false)}}); // cleared
 
-	setOp(xi->operands[0], xorOp, irb);
+	storeOp(xi->operands[0], xorOp, irb);
 }
 
 /**
@@ -3534,7 +3403,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateLoadString(cs_insn* i, cs_x86* 
 	// Body.
 	//
 	op1 = loadOp(xi->operands[1], body);
-	setOp(xi->operands[0], op1, body);
+	storeOp(xi->operands[0], op1, body);
 
 	// We need to modify SI/ESI/RSI, it should be base register in memory op1.
 	cs_x86_op& o1 = xi->operands[1];
@@ -3586,7 +3455,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateStoreString(cs_insn* i, cs_x86*
 	// Body.
 	//
 	op1 = loadOp(xi->operands[1], body);
-	setOp(xi->operands[0], op1, body);
+	storeOp(xi->operands[0], op1, body);
 
 	// We need to modify DI/EDI/RDI, it should be base register in memory op0.
 	cs_x86_op& o0 = xi->operands[0];
@@ -3651,7 +3520,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateMoveString(cs_insn* i, cs_x86* 
 	// Body.
 	//
 	op1 = loadOp(xi->operands[1], body);
-	setOp(xi->operands[0], op1, body);
+	storeOp(xi->operands[0], op1, body);
 
 	// We need to modify DI/EDI/RDI, it should be base register in memory op0.
 	cs_x86_op& o0 = xi->operands[0];
@@ -3926,22 +3795,22 @@ void Capstone2LlvmIrTranslatorX86_impl::translateJCc(cs_insn* i, cs_x86* xi, llv
 	llvm::Value* cond = nullptr;
 	switch (i->id)
 	{
-		case X86_INS_JAE: cond = genCcAE(irb); break;
-		case X86_INS_JA:  cond = genCcA(irb); break;
-		case X86_INS_JBE: cond = genCcBE(irb); break;
-		case X86_INS_JB:  cond = genCcB(irb); break;
-		case X86_INS_JE:  cond = genCcE(irb); break;
-		case X86_INS_JGE: cond = genCcGE(irb); break;
-		case X86_INS_JG:  cond = genCcG(irb); break;
-		case X86_INS_JLE: cond = genCcLE(irb); break;
-		case X86_INS_JL:  cond = genCcL(irb); break;
-		case X86_INS_JNE: cond = genCcNE(irb); break;
-		case X86_INS_JNO: cond = genCcNO(irb); break;
-		case X86_INS_JNP: cond = genCcNP(irb); break;
-		case X86_INS_JNS: cond = genCcNS(irb); break;
-		case X86_INS_JO:  cond = genCcO(irb); break;
-		case X86_INS_JP:  cond = genCcP(irb); break;
-		case X86_INS_JS:  cond = genCcS(irb); break;
+		case X86_INS_JAE: cond = generateCcAE(irb); break;
+		case X86_INS_JA:  cond = generateCcA(irb); break;
+		case X86_INS_JBE: cond = generateCcBE(irb); break;
+		case X86_INS_JB:  cond = generateCcB(irb); break;
+		case X86_INS_JE:  cond = generateCcE(irb); break;
+		case X86_INS_JGE: cond = generateCcGE(irb); break;
+		case X86_INS_JG:  cond = generateCcG(irb); break;
+		case X86_INS_JLE: cond = generateCcLE(irb); break;
+		case X86_INS_JL:  cond = generateCcL(irb); break;
+		case X86_INS_JNE: cond = generateCcNE(irb); break;
+		case X86_INS_JNO: cond = generateCcNO(irb); break;
+		case X86_INS_JNP: cond = generateCcNP(irb); break;
+		case X86_INS_JNS: cond = generateCcNS(irb); break;
+		case X86_INS_JO:  cond = generateCcO(irb); break;
+		case X86_INS_JP:  cond = generateCcP(irb); break;
+		case X86_INS_JS:  cond = generateCcS(irb); break;
 		default: throw Capstone2LlvmIrError("Unhandled insn ID in translateJCc().");
 	}
 
@@ -3963,29 +3832,29 @@ void Capstone2LlvmIrTranslatorX86_impl::translateSetCc(cs_insn* i, cs_x86* xi, l
 	llvm::Value* cond = nullptr;
 	switch (i->id)
 	{
-		case X86_INS_SETAE: cond = genCcAE(irb); break;
-		case X86_INS_SETA:  cond = genCcA(irb); break;
-		case X86_INS_SETBE: cond = genCcBE(irb); break;
-		case X86_INS_SETB:  cond = genCcB(irb); break;
-		case X86_INS_SETE:  cond = genCcE(irb); break;
-		case X86_INS_SETGE: cond = genCcGE(irb); break;
-		case X86_INS_SETG:  cond = genCcG(irb); break;
-		case X86_INS_SETLE: cond = genCcLE(irb); break;
-		case X86_INS_SETL:  cond = genCcL(irb); break;
-		case X86_INS_SETNE: cond = genCcNE(irb); break;
-		case X86_INS_SETNO: cond = genCcNO(irb); break;
-		case X86_INS_SETNP: cond = genCcNP(irb); break;
-		case X86_INS_SETNS: cond = genCcNS(irb); break;
-		case X86_INS_SETO:  cond = genCcO(irb); break;
-		case X86_INS_SETP:  cond = genCcP(irb); break;
-		case X86_INS_SETS:  cond = genCcS(irb); break;
+		case X86_INS_SETAE: cond = generateCcAE(irb); break;
+		case X86_INS_SETA:  cond = generateCcA(irb); break;
+		case X86_INS_SETBE: cond = generateCcBE(irb); break;
+		case X86_INS_SETB:  cond = generateCcB(irb); break;
+		case X86_INS_SETE:  cond = generateCcE(irb); break;
+		case X86_INS_SETGE: cond = generateCcGE(irb); break;
+		case X86_INS_SETG:  cond = generateCcG(irb); break;
+		case X86_INS_SETLE: cond = generateCcLE(irb); break;
+		case X86_INS_SETL:  cond = generateCcL(irb); break;
+		case X86_INS_SETNE: cond = generateCcNE(irb); break;
+		case X86_INS_SETNO: cond = generateCcNO(irb); break;
+		case X86_INS_SETNP: cond = generateCcNP(irb); break;
+		case X86_INS_SETNS: cond = generateCcNS(irb); break;
+		case X86_INS_SETO:  cond = generateCcO(irb); break;
+		case X86_INS_SETP:  cond = generateCcP(irb); break;
+		case X86_INS_SETS:  cond = generateCcS(irb); break;
 		default: throw Capstone2LlvmIrError("Unhandled insn ID in translateSetCc().");
 	}
 
-	// This should be done by setOp(), but we make sure here anyway.
+	// This should be done by storeOp(), but we make sure here anyway.
 	auto* val = irb.CreateZExtOrTrunc(cond, irb.getInt8Ty());
 
-	setOp(xi->operands[0], val, irb);
+	storeOp(xi->operands[0], val, irb);
 }
 
 /**
@@ -3999,28 +3868,28 @@ void Capstone2LlvmIrTranslatorX86_impl::translateCMovCc(cs_insn* i, cs_x86* xi, 
 	llvm::Value* cond = nullptr;
 	switch (i->id)
 	{
-		case X86_INS_CMOVAE: cond = genCcAE(irb); break;
-		case X86_INS_CMOVA:  cond = genCcA(irb); break;
-		case X86_INS_CMOVBE: cond = genCcBE(irb); break;
-		case X86_INS_CMOVB:  cond = genCcB(irb); break;
-		case X86_INS_CMOVE:  cond = genCcE(irb); break;
-		case X86_INS_CMOVGE: cond = genCcGE(irb); break;
-		case X86_INS_CMOVG:  cond = genCcG(irb); break;
-		case X86_INS_CMOVLE: cond = genCcLE(irb); break;
-		case X86_INS_CMOVL:  cond = genCcL(irb); break;
-		case X86_INS_CMOVNE: cond = genCcNE(irb); break;
-		case X86_INS_CMOVNO: cond = genCcNO(irb); break;
-		case X86_INS_CMOVNP: cond = genCcNP(irb); break;
-		case X86_INS_CMOVNS: cond = genCcNS(irb); break;
-		case X86_INS_CMOVO:  cond = genCcO(irb); break;
-		case X86_INS_CMOVP:  cond = genCcP(irb); break;
-		case X86_INS_CMOVS:  cond = genCcS(irb); break;
+		case X86_INS_CMOVAE: cond = generateCcAE(irb); break;
+		case X86_INS_CMOVA:  cond = generateCcA(irb); break;
+		case X86_INS_CMOVBE: cond = generateCcBE(irb); break;
+		case X86_INS_CMOVB:  cond = generateCcB(irb); break;
+		case X86_INS_CMOVE:  cond = generateCcE(irb); break;
+		case X86_INS_CMOVGE: cond = generateCcGE(irb); break;
+		case X86_INS_CMOVG:  cond = generateCcG(irb); break;
+		case X86_INS_CMOVLE: cond = generateCcLE(irb); break;
+		case X86_INS_CMOVL:  cond = generateCcL(irb); break;
+		case X86_INS_CMOVNE: cond = generateCcNE(irb); break;
+		case X86_INS_CMOVNO: cond = generateCcNO(irb); break;
+		case X86_INS_CMOVNP: cond = generateCcNP(irb); break;
+		case X86_INS_CMOVNS: cond = generateCcNS(irb); break;
+		case X86_INS_CMOVO:  cond = generateCcO(irb); break;
+		case X86_INS_CMOVP:  cond = generateCcP(irb); break;
+		case X86_INS_CMOVS:  cond = generateCcS(irb); break;
 		default: throw Capstone2LlvmIrError("Unhandled insn ID in translateSetCc().");
 	}
 
 	std::tie(op0, op1) = loadOpBinary(xi, irb, eOpConv::THROW);
 	auto* val = irb.CreateSelect(cond, op1, op0);
-	setOp(xi->operands[0], val, irb);
+	storeOp(xi->operands[0], val, irb);
 }
 
 /**
@@ -4030,11 +3899,20 @@ void Capstone2LlvmIrTranslatorX86_impl::translateFld(cs_insn* i, cs_x86* xi, llv
 {
 	if (i->id == X86_INS_FLD)
 	{
-		op0 = loadOpUnaryFloat(xi, irb, llvm::Type::getX86_FP80Ty(_module->getContext()), eOpConv::FP_CAST);
+		op0 = loadOpUnary(
+				xi,
+				irb,
+				llvm::Type::getX86_FP80Ty(_module->getContext()),
+				eOpConv::FP_CAST,
+				llvm::Type::getFloatTy(_module->getContext()));
 	}
 	else
 	{
-		op0 = loadOpUnary(xi, irb, llvm::Type::getX86_FP80Ty(_module->getContext()), eOpConv::SITOFP);
+		op0 = loadOpUnary(
+				xi,
+				irb,
+				llvm::Type::getX86_FP80Ty(_module->getContext()),
+				eOpConv::SITOFP);
 	}
 	auto* top = loadX87TopDec(irb);
 
@@ -4113,7 +3991,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateFst(cs_insn* i, cs_x86* xi, llv
 	auto* top = loadX87Top(irb);
 	llvm::Value* src = loadX87DataReg(irb, top);
 
-	setOpFloat(xi->operands[0], src, irb);
+	storeOpFloat(xi->operands[0], src, irb);
 
 	if (i->id == X86_INS_FSTP)
 	{
@@ -4190,18 +4068,31 @@ Capstone2LlvmIrTranslatorX86_impl::loadOpFloatingUnaryTop(
 				|| i->id == X86_INS_FISUB
 				|| i->id == X86_INS_FISUBR)
 		{
-			op1 = loadOpUnary(xi, irb, llvm::Type::getX86_FP80Ty(_module->getContext()), eOpConv::SITOFP);
+			op1 = loadOpUnary(
+					xi,
+					irb,
+					llvm::Type::getX86_FP80Ty(_module->getContext()),
+					eOpConv::SITOFP);
 			op0 = loadX87DataReg(irb, top);
 		}
 		else if ( i->id == X86_INS_FICOM
 				|| i->id == X86_INS_FICOMP)
 		{
-			op0 = loadOpUnary(xi, irb, llvm::Type::getX86_FP80Ty(_module->getContext()), eOpConv::UITOFP);
+			op0 = loadOpUnary(
+					xi,
+					irb,
+					llvm::Type::getX86_FP80Ty(_module->getContext()),
+					eOpConv::UITOFP);
 			op1 = loadX87DataReg(irb, top);
 		}
 		else
 		{
-			op0 = loadOpUnaryFloat(xi, irb, llvm::Type::getX86_FP80Ty(_module->getContext()), eOpConv::FP_CAST);
+			op0 = loadOpUnary(
+					xi,
+					irb,
+					llvm::Type::getX86_FP80Ty(_module->getContext()),
+					eOpConv::FP_CAST,
+					llvm::Type::getFloatTy(_module->getContext()));
 			op1 = loadX87DataReg(irb, top);
 		}
 		idx = top;
@@ -4621,7 +4512,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateFist(cs_insn* i, cs_x86* xi, ll
 	auto* top = loadX87DataReg(irb, topNum);
 	auto* t = getIntegerTypeFromByteSize(_module, xi->operands[0].size);
 	auto* fptosi = irb.CreateFPToSI(top, t);
-	setOp(xi->operands[0], fptosi, irb);
+	storeOp(xi->operands[0], fptosi, irb);
 
 	if (i->id == X86_INS_FISTP)
 	{
@@ -4753,7 +4644,7 @@ void Capstone2LlvmIrTranslatorX86_impl::translateIns(cs_insn* i, cs_x86* xi, llv
 	//
 	auto* dx = loadRegister(X86_REG_DX, body);
 	auto* c = body.CreateCall(fnc, {dx});
-	setOp(xi->operands[0], c, body);
+	storeOp(xi->operands[0], c, body);
 
 	// REP prefix.
 	//

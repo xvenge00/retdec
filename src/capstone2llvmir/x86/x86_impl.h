@@ -14,7 +14,7 @@ namespace retdec {
 namespace capstone2llvmir {
 
 class Capstone2LlvmIrTranslatorX86_impl :
-		public Capstone2LlvmIrTranslator_impl,
+		public Capstone2LlvmIrTranslator_impl<cs_x86, cs_x86_op>,
 		public Capstone2LlvmIrTranslatorX86
 {
 	public:
@@ -94,6 +94,12 @@ class Capstone2LlvmIrTranslatorX86_impl :
 				llvm::IRBuilder<>& irb,
 				llvm::Type* dstType = nullptr,
 				eOpConv ct = eOpConv::THROW) override;
+		virtual llvm::Value* loadOp(
+				cs_x86_op& op,
+				llvm::IRBuilder<>& irb,
+				llvm::Type* ty = nullptr,
+				bool lea = false) override;
+
 		llvm::StoreInst* storeRegister(
 				uint32_t r,
 				llvm::Value* val,
@@ -133,42 +139,18 @@ class Capstone2LlvmIrTranslatorX86_impl :
 				llvm::IRBuilder<>& irb,
 				llvm::Value* rNum);
 
-		llvm::Value* loadOp(
-				cs_x86_op& op,
-				llvm::IRBuilder<>& irb,
-				bool lea = false,
-				bool fp = false);
-		llvm::Value* loadOpUnary(
-				cs_x86* xi,
-				llvm::IRBuilder<>& irb,
-				llvm::Type* dstType = nullptr,
-				eOpConv ct = eOpConv::THROW,
-				bool fp = false);
-		llvm::Value* loadOpUnaryFloat(
-				cs_x86* xi,
-				llvm::IRBuilder<>& irb,
-				llvm::Type* dstType = nullptr,
-				eOpConv ct = eOpConv::THROW);
-
 		std::tuple<llvm::Value*, llvm::Value*, llvm::Value*, llvm::Value*> loadOpFloatingUnaryTop(
 				cs_insn* i,
 				cs_x86* xi,
 				llvm::IRBuilder<>& irb);
 
-		std::pair<llvm::Value*, llvm::Value*> loadOpBinary(
-				cs_x86* xi,
-				llvm::IRBuilder<>& irb,
-				eOpConv ct = eOpConv::THROW);
-		std::tuple<llvm::Value*, llvm::Value*, llvm::Value*> loadOpTernary(
-				cs_x86* xi,
-				llvm::IRBuilder<>& irb);
-		llvm::Instruction* setOp(
+		llvm::Instruction* storeOp(
 				cs_x86_op& op,
 				llvm::Value* val,
 				llvm::IRBuilder<>& irb,
 				eOpConv ct = eOpConv::ZEXT_TRUNC,
 				bool fp = false);
-		llvm::Instruction* setOpFloat(
+		llvm::Instruction* storeOpFloat(
 				cs_x86_op& op,
 				llvm::Value* val,
 				llvm::IRBuilder<>& irb,
@@ -181,22 +163,22 @@ class Capstone2LlvmIrTranslatorX86_impl :
 				llvm::Value* val,
 				llvm::IRBuilder<>& irb);
 
-		llvm::Value* genCcAE(llvm::IRBuilder<>& irb);
-		llvm::Value* genCcA(llvm::IRBuilder<>& irb);
-		llvm::Value* genCcBE(llvm::IRBuilder<>& irb);
-		llvm::Value* genCcB(llvm::IRBuilder<>& irb);
-		llvm::Value* genCcE(llvm::IRBuilder<>& irb);
-		llvm::Value* genCcGE(llvm::IRBuilder<>& irb);
-		llvm::Value* genCcG(llvm::IRBuilder<>& irb);
-		llvm::Value* genCcLE(llvm::IRBuilder<>& irb);
-		llvm::Value* genCcL(llvm::IRBuilder<>& irb);
-		llvm::Value* genCcNE(llvm::IRBuilder<>& irb);
-		llvm::Value* genCcNO(llvm::IRBuilder<>& irb);
-		llvm::Value* genCcNP(llvm::IRBuilder<>& irb);
-		llvm::Value* genCcNS(llvm::IRBuilder<>& irb);
-		llvm::Value* genCcO(llvm::IRBuilder<>& irb);
-		llvm::Value* genCcP(llvm::IRBuilder<>& irb);
-		llvm::Value* genCcS(llvm::IRBuilder<>& irb);
+		llvm::Value* generateCcAE(llvm::IRBuilder<>& irb);
+		llvm::Value* generateCcA(llvm::IRBuilder<>& irb);
+		llvm::Value* generateCcBE(llvm::IRBuilder<>& irb);
+		llvm::Value* generateCcB(llvm::IRBuilder<>& irb);
+		llvm::Value* generateCcE(llvm::IRBuilder<>& irb);
+		llvm::Value* generateCcGE(llvm::IRBuilder<>& irb);
+		llvm::Value* generateCcG(llvm::IRBuilder<>& irb);
+		llvm::Value* generateCcLE(llvm::IRBuilder<>& irb);
+		llvm::Value* generateCcL(llvm::IRBuilder<>& irb);
+		llvm::Value* generateCcNE(llvm::IRBuilder<>& irb);
+		llvm::Value* generateCcNO(llvm::IRBuilder<>& irb);
+		llvm::Value* generateCcNP(llvm::IRBuilder<>& irb);
+		llvm::Value* generateCcNS(llvm::IRBuilder<>& irb);
+		llvm::Value* generateCcO(llvm::IRBuilder<>& irb);
+		llvm::Value* generateCcP(llvm::IRBuilder<>& irb);
+		llvm::Value* generateCcS(llvm::IRBuilder<>& irb);
 //
 //==============================================================================
 // x86 implementation data.

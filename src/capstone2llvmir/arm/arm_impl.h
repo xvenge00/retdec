@@ -14,7 +14,7 @@ namespace retdec {
 namespace capstone2llvmir {
 
 class Capstone2LlvmIrTranslatorArm_impl :
-		public Capstone2LlvmIrTranslator_impl,
+		public Capstone2LlvmIrTranslator_impl<cs_arm, cs_arm_op>,
 		public Capstone2LlvmIrTranslatorArm
 {
 	public:
@@ -62,36 +62,11 @@ class Capstone2LlvmIrTranslatorArm_impl :
 				llvm::IRBuilder<>& irb,
 				llvm::Type* dstType = nullptr,
 				eOpConv ct = eOpConv::THROW) override;
-		llvm::Value* loadOp(
+		virtual llvm::Value* loadOp(
 				cs_arm_op& op,
 				llvm::IRBuilder<>& irb,
-				llvm::Type* ty = nullptr);
-		llvm::Value* loadOpUnary(
-				cs_arm* ai,
-				llvm::IRBuilder<>& irb,
-				llvm::Type* ty = nullptr);
-		std::pair<llvm::Value*, llvm::Value*> loadOpBinary(
-				cs_arm* ai,
-				llvm::IRBuilder<>& irb,
-				eOpConv ct = eOpConv::NOTHING);
-		llvm::Value* loadOpBinaryOp0(
-				cs_arm* ai,
-				llvm::IRBuilder<>& irb,
-				llvm::Type* ty = nullptr);
-		llvm::Value* loadOpBinaryOp1(
-				cs_arm* ai,
-				llvm::IRBuilder<>& irb,
-				llvm::Type* ty = nullptr);
-		std::tuple<llvm::Value*, llvm::Value*, llvm::Value*> loadOpTernary(
-				cs_arm* ai,
-				llvm::IRBuilder<>& irb);
-		std::pair<llvm::Value*, llvm::Value*> loadOpTernaryOp1Op2(
-				cs_arm* ai,
-				llvm::IRBuilder<>& irb,
-				eOpConv ct = eOpConv::NOTHING);
-		std::tuple<llvm::Value*, llvm::Value*, llvm::Value*> loadOpQuaternaryOp1Op2Op3(
-				cs_arm* ai,
-				llvm::IRBuilder<>& irb);
+				llvm::Type* ty = nullptr,
+				bool lea = false) override;
 
 		llvm::Instruction* storeRegister(
 				uint32_t r,

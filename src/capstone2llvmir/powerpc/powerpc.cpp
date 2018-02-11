@@ -282,7 +282,8 @@ llvm::Value* Capstone2LlvmIrTranslatorPowerpc_impl::loadRegister(
 llvm::Value* Capstone2LlvmIrTranslatorPowerpc_impl::loadOp(
 		cs_ppc_op& op,
 		llvm::IRBuilder<>& irb,
-		llvm::Type* ty)
+		llvm::Type* ty,
+		bool lea) // TODO: implement lea
 {
 	switch (op.type)
 	{
@@ -336,157 +337,6 @@ llvm::Value* Capstone2LlvmIrTranslatorPowerpc_impl::loadOp(
 			return nullptr;
 		}
 	}
-}
-
-llvm::Value* Capstone2LlvmIrTranslatorPowerpc_impl::loadOpUnary(
-		cs_ppc* pi,
-		llvm::IRBuilder<>& irb)
-{
-	if (pi->op_count != 1)
-	{
-		throw Capstone2LlvmIrError("This is not a unary instruction.");
-	}
-
-	return loadOp(pi->operands[0], irb);
-}
-
-std::pair<llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorPowerpc_impl::loadOpBinary(
-		cs_ppc* pi,
-		llvm::IRBuilder<>& irb,
-		eOpConv ct)
-{
-	if (pi->op_count != 2)
-	{
-		throw Capstone2LlvmIrError("This is not a binary instruction.");
-	}
-
-	auto* op0 = loadOp(pi->operands[0], irb);
-	auto* op1 = loadOp(pi->operands[1], irb);
-	if (op0 == nullptr || op1 == nullptr)
-	{
-		throw Capstone2LlvmIrError("Operands loading failed.");
-	}
-
-	if (op0->getType() != op1->getType())
-	{
-		switch (ct)
-		{
-			case eOpConv::SECOND_SEXT:
-			{
-				op1 = irb.CreateSExtOrTrunc(op1, op0->getType());
-				break;
-			}
-			case eOpConv::SECOND_ZEXT:
-			{
-				op1 = irb.CreateZExtOrTrunc(op1, op0->getType());
-				break;
-			}
-			case eOpConv::NOTHING:
-			{
-				break;
-			}
-			default:
-			case eOpConv::THROW:
-			{
-				throw Capstone2LlvmIrError("Binary operands' types not equal.");
-			}
-		}
-	}
-
-	return std::make_pair(op0, op1);
-}
-
-llvm::Value* Capstone2LlvmIrTranslatorPowerpc_impl::loadOpBinaryOp0(
-		cs_ppc* pi,
-		llvm::IRBuilder<>& irb,
-		llvm::Type* ty)
-{
-	if (pi->op_count != 2)
-	{
-		throw Capstone2LlvmIrError("This is not a binary instruction.");
-	}
-
-	return loadOp(pi->operands[0], irb, ty);
-}
-
-llvm::Value* Capstone2LlvmIrTranslatorPowerpc_impl::loadOpBinaryOp1(
-		cs_ppc* pi,
-		llvm::IRBuilder<>& irb,
-		llvm::Type* ty)
-{
-	if (pi->op_count != 2)
-	{
-		throw Capstone2LlvmIrError("This is not a binary instruction.");
-	}
-
-	return loadOp(pi->operands[1], irb, ty);
-}
-
-std::tuple<llvm::Value*, llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorPowerpc_impl::loadOpTernary(
-		cs_ppc* pi,
-		llvm::IRBuilder<>& irb)
-{
-	if (pi->op_count != 3)
-	{
-		throw Capstone2LlvmIrError("This is not a ternary instruction.");
-	}
-
-	auto* op0 = loadOp(pi->operands[0], irb);
-	auto* op1 = loadOp(pi->operands[1], irb);
-	auto* op2 = loadOp(pi->operands[2], irb);
-	if (op0 == nullptr || op1 == nullptr || op2 == nullptr)
-	{
-		throw Capstone2LlvmIrError("Operands loading failed.");
-	}
-
-	return std::make_tuple(op0, op1, op2);
-}
-
-std::pair<llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorPowerpc_impl::loadTernaryOp1Op2(
-		cs_ppc* pi,
-		llvm::IRBuilder<>& irb,
-		eOpConv ct)
-{
-	if (pi->op_count != 3)
-	{
-		throw Capstone2LlvmIrError("This is not a ternary instruction.");
-	}
-
-	auto* op1 = loadOp(pi->operands[1], irb);
-	auto* op2 = loadOp(pi->operands[2], irb);
-	if (op1 == nullptr || op2 == nullptr)
-	{
-		throw Capstone2LlvmIrError("Operands loading failed.");
-	}
-
-	if (op1->getType() != op2->getType())
-	{
-		switch (ct)
-		{
-			// TODO: what if types are floating points?
-			case eOpConv::SECOND_SEXT:
-			{
-				op2 = irb.CreateSExtOrTrunc(op2, op1->getType());
-				break;
-			}
-			case eOpConv::SECOND_ZEXT:
-			{
-				op2 = irb.CreateZExtOrTrunc(op2, op1->getType());
-				break;
-			}
-			case eOpConv::NOTHING:
-			{
-				break;
-			}
-			default:
-			case eOpConv::THROW:
-			{
-				throw Capstone2LlvmIrError("Binary operands' types not equal.");
-			}
-		}
-	}
-
-	return std::make_pair(op1, op2);
 }
 
 llvm::StoreInst* Capstone2LlvmIrTranslatorPowerpc_impl::storeRegister(
@@ -916,7 +766,7 @@ bool Capstone2LlvmIrTranslatorPowerpc_impl::isCrRegister(cs_ppc_op& op)
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateAdd(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_SEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_SEXT);
 	auto* add = irb.CreateAdd(op1, op2);
 	storeOp(pi->operands[0], add, irb);
 	storeCr0(irb, pi, add);
@@ -927,7 +777,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateAdd(cs_insn* i, cs_ppc* pi,
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateAddc(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_SEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_SEXT);
 	auto* add = irb.CreateAdd(op1, op2);
 	storeOp(pi->operands[0], add, irb);
 	storeCr0(irb, pi, add);
@@ -939,7 +789,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateAddc(cs_insn* i, cs_ppc* pi
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateAdde(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_SEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_SEXT);
 	auto* add = irb.CreateAdd(op1, op2);
 	auto* carry = loadRegister(PPC_REG_CARRY, irb);
 	carry = irb.CreateZExtOrTrunc(carry, add->getType());
@@ -956,7 +806,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateAdde(cs_insn* i, cs_ppc* pi
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateAddis(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
 	op2 = irb.CreateShl(op2, llvm::ConstantInt::get(op2->getType(), 16));
 	auto* add = irb.CreateAdd(op1, op2);
 	storeOp(pi->operands[0], add, irb);
@@ -1008,7 +858,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateAddze(cs_insn* i, cs_ppc* p
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateAnd(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
 	auto* val = irb.CreateAnd(op1, op2);
 	storeOp(pi->operands[0], val, irb);
 	storeCr0(irb, pi, val);
@@ -1019,7 +869,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateAnd(cs_insn* i, cs_ppc* pi,
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateAndc(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
 	op2 = generateValueNegate(irb, op2);
 	auto* val = irb.CreateAnd(op1, op2);
 	storeOp(pi->operands[0], val, irb);
@@ -1031,7 +881,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateAndc(cs_insn* i, cs_ppc* pi
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateAndis(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
 	op2 = irb.CreateShl(op2, llvm::ConstantInt::get(op2->getType(), 16));
 	auto* val = irb.CreateAnd(op1, op2);
 	storeOp(pi->operands[0], val, irb);
@@ -1043,7 +893,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateAndis(cs_insn* i, cs_ppc* p
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateClrlwi(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
 	op2 = irb.CreateAnd(op2, llvm::ConstantInt::get(op2->getType(), 31));
 	op1 = irb.CreateShl(op1, op2);
 	op1 = irb.CreateLShr(op1, op2);
@@ -1076,7 +926,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateCmp(cs_insn* i, cs_ppc* pi,
 			&& pi->operands[0].reg <= PPC_REG_CR7)
 	{
 		crReg = pi->operands[0].reg;
-		std::tie(op0, op1) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_SEXT);
+		std::tie(op0, op1) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_SEXT);
 	}
 	else
 	{
@@ -1125,7 +975,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateCntlzw(cs_insn* i, cs_ppc* 
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateDivw(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb);
 	auto* val = i->id == PPC_INS_DIVW
 			? irb.CreateSDiv(op1, op2)
 			: irb.CreateUDiv(op1, op2);
@@ -1138,7 +988,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateDivw(cs_insn* i, cs_ppc* pi
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateEqv(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
 	auto* val = irb.CreateXor(op1, op2);
 	val = generateValueNegate(irb, val);
 	storeOp(pi->operands[0], val, irb);
@@ -1228,7 +1078,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateLoad(cs_insn* i, cs_ppc* pi
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateLoadIndexed(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
 	auto* add = irb.CreateAdd(op1, op2);
 
 	llvm::Type* ty = nullptr;
@@ -1403,7 +1253,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateStoreReverseIndexed(cs_insn
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateLhbrx(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
 
 	auto* pty = llvm::PointerType::get(irb.getInt8Ty(), 0);
 
@@ -1453,7 +1303,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateLis(cs_insn* i, cs_ppc* pi,
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateLwbrx(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
 
 	llvm::Function* fnc = getOrCreateAsmFunction(
 			i->id,
@@ -1825,7 +1675,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateMfspr(cs_insn* i, cs_ppc* p
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateMulhw(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb);
 	if (i->id == PPC_INS_MULHW)
 	{
 		op1 = irb.CreateSExtOrTrunc(op1, irb.getInt64Ty());
@@ -1848,7 +1698,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateMulhw(cs_insn* i, cs_ppc* p
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateMullw(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_SEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_SEXT);
 	auto* val = irb.CreateMul(op1, op2);
 	storeOp(pi->operands[0], val, irb);
 	storeCr0(irb, pi, val);
@@ -1859,7 +1709,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateMullw(cs_insn* i, cs_ppc* p
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateNand(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
 	auto* val = irb.CreateAnd(op1, op2);
 	val = generateValueNegate(irb, val);
 	storeOp(pi->operands[0], val, irb);
@@ -1890,7 +1740,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateNop(cs_insn* i, cs_ppc* pi,
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateNor(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
 	auto* val = irb.CreateOr(op1, op2);
 	val = generateValueNegate(irb, val);
 	storeOp(pi->operands[0], val, irb);
@@ -1915,7 +1765,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateNot(cs_insn* i, cs_ppc* pi,
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateOr(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
 	auto* val = irb.CreateOr(op1, op2);
 	storeOp(pi->operands[0], val, irb);
 	storeCr0(irb, pi, val);
@@ -1926,7 +1776,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateOr(cs_insn* i, cs_ppc* pi, 
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateOrc(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
 	op2 = generateValueNegate(irb, op2);
 	auto* val = irb.CreateOr(op1, op2);
 	storeOp(pi->operands[0], val, irb);
@@ -1938,7 +1788,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateOrc(cs_insn* i, cs_ppc* pi,
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateOris(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
 	op2 = irb.CreateShl(op2, llvm::ConstantInt::get(op2->getType(), 16));
 	auto* val = irb.CreateOr(op1, op2);
 	storeOp(pi->operands[0], val, irb);
@@ -1980,7 +1830,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateRotateComplex5op(cs_insn* i
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateRotlw(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
 	unsigned op0BitW = llvm::cast<llvm::IntegerType>(op1->getType())->getBitWidth();
 	unsigned maskC = op0BitW == 64 ? 0x3f : 0x1f;
 	auto* mask = llvm::ConstantInt::get(op2->getType(), maskC);
@@ -2000,7 +1850,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateRotlw(cs_insn* i, cs_ppc* p
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateShiftLeft(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb);
 	op1 = irb.CreateZExtOrTrunc(op1, irb.getInt32Ty());
 	op2 = irb.CreateAnd(op2, llvm::ConstantInt::get(op2->getType(), 0x3f)); // low 6 bits
 	op2 = irb.CreateZExtOrTrunc(op2, op1->getType());
@@ -2015,7 +1865,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateShiftLeft(cs_insn* i, cs_pp
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateShiftRight(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb);
 	op1 = irb.CreateZExtOrTrunc(op1, irb.getInt32Ty());
 	op2 = irb.CreateAnd(op2, llvm::ConstantInt::get(op2->getType(), 0x3f)); // low 6 bits
 	op2 = irb.CreateZExtOrTrunc(op2, op1->getType());
@@ -2030,7 +1880,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateShiftRight(cs_insn* i, cs_p
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateSlwi(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb);
 	auto* shl = irb.CreateShl(op1, op2);
 	storeOp(pi->operands[0], shl, irb);
 	storeCr0(irb, pi, shl);
@@ -2041,7 +1891,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateSlwi(cs_insn* i, cs_ppc* pi
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateSrwi(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb);
 	auto* shr = irb.CreateLShr(op1, op2);
 	storeOp(pi->operands[0], shr, irb);
 	storeCr0(irb, pi, shr);
@@ -2052,7 +1902,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateSrwi(cs_insn* i, cs_ppc* pi
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateSraw(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-//	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb);
+//	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb);
 //
 //	llvm::Function* fnc = getOrCreateAsmFunction(
 //			i->id,
@@ -2069,7 +1919,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateSraw(cs_insn* i, cs_ppc* pi
 
 	// TODO: this is one-to-one from old semantics, it is super ugly, can it be better?
 
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb);
 
 	auto* andV = irb.CreateAnd(op2, llvm::ConstantInt::get(op2->getType(), 31));
 	auto* u2 = irb.CreateSub(llvm::ConstantInt::get(op2->getType(), 0), op2);
@@ -2108,7 +1958,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateSraw(cs_insn* i, cs_ppc* pi
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateSubf(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_SEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_SEXT);
 	if (i->id == PPC_INS_SUB)
 	{
 		std::swap(op1, op2);
@@ -2126,7 +1976,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateSubf(cs_insn* i, cs_ppc* pi
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateSubfc(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_SEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_SEXT);
 	if (i->id == PPC_INS_SUBC)
 	{
 		std::swap(op1, op2);
@@ -2157,7 +2007,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateSubfc(cs_insn* i, cs_ppc* p
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateSubfe(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_SEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_SEXT);
 	auto* op1Neg = generateValueNegate(irb, op1);
 	auto* val = irb.CreateAdd(op1Neg, op2);
 	auto* carry = loadRegister(PPC_REG_CARRY, irb);
@@ -2214,7 +2064,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateSubfze(cs_insn* i, cs_ppc* 
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateXor(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
 	auto* val = irb.CreateXor(op1, op2);
 	storeOp(pi->operands[0], val, irb);
 	storeCr0(irb, pi, val);
@@ -2225,7 +2075,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateXor(cs_insn* i, cs_ppc* pi,
  */
 void Capstone2LlvmIrTranslatorPowerpc_impl::translateXoris(cs_insn* i, cs_ppc* pi, llvm::IRBuilder<>& irb)
 {
-	std::tie(op1, op2) = loadTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
+	std::tie(op1, op2) = loadOpTernaryOp1Op2(pi, irb, eOpConv::SECOND_ZEXT);
 	op2 = irb.CreateShl(op2, llvm::ConstantInt::get(op2->getType(), 16));
 	auto* val = irb.CreateXor(op1, op2);
 	storeOp(pi->operands[0], val, irb);
