@@ -197,11 +197,11 @@ class Capstone2LlvmIrTranslatorX86_impl :
 		llvm::Value* genCcO(llvm::IRBuilder<>& irb);
 		llvm::Value* genCcP(llvm::IRBuilder<>& irb);
 		llvm::Value* genCcS(llvm::IRBuilder<>& irb);
-	//
-	//==============================================================================
-	// x86 implementation data.
-	//==============================================================================
-	//
+//
+//==============================================================================
+// x86 implementation data.
+//==============================================================================
+//
 	protected:
 		cs_mode _origBasicMode = CS_MODE_LITTLE_ENDIAN;
 
@@ -226,20 +226,9 @@ class Capstone2LlvmIrTranslatorX86_impl :
 					cs_x86*,
 					llvm::IRBuilder<>&)> _i2fm;
 
-		// These are used to save lines needed to declare locale operands in
-		// each translation function.
-		// In C++17, we could use Structured Bindings:
-		// auto [ op0, op1 ] = loadOpBinary();
-		llvm::Value* op0 = nullptr;
-		llvm::Value* op1 = nullptr;
-		llvm::Value* op2 = nullptr;
-
 		llvm::Value* top = nullptr;
 		llvm::Value* idx = nullptr;
 
-		cs_insn* _insn = nullptr;
-
-		///
 		llvm::Function* _x87DataStoreFunction = nullptr; // void (i3, fp80)
 		llvm::Function* _x87TagStoreFunction = nullptr; // void (i3, i2)
 		llvm::Function* _x87DataLoadFunction = nullptr; // fp80 (i3)

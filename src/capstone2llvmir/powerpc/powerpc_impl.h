@@ -131,14 +131,6 @@ class Capstone2LlvmIrTranslatorPowerpc_impl :
 					cs_insn* i,
 					cs_ppc*,
 					llvm::IRBuilder<>&)> _i2fm;
-
-		// These are used to save lines needed to declare locale operands in
-		// each translation function.
-		// In C++17, we could use Structured Bindings:
-		// auto [ op0, op1 ] = loadOpBinary();
-		llvm::Value* op0 = nullptr;
-		llvm::Value* op1 = nullptr;
-		llvm::Value* op2 = nullptr;
 //
 //==============================================================================
 // PowerPC instruction translation methods.

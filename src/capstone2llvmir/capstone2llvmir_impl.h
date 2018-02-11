@@ -391,6 +391,18 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 		/// @c True if generated branch is in conditional code, e.g. uncond
 		/// branch in if-then.
 		bool _inCondition = false;
+
+		// These are used to save lines needed to declare locale operands in
+		// each translation function.
+		// In C++17, we could use Structured Bindings:
+		// auto [ op0, op1 ] = loadOpBinary();
+		llvm::Value* op0 = nullptr;
+		llvm::Value* op1 = nullptr;
+		llvm::Value* op2 = nullptr;
+		llvm::Value* op3 = nullptr;
+
+		/// Capstone instruction being currently translated.
+		cs_insn* _insn = nullptr;
 };
 
 } // namespace capstone2llvmir
