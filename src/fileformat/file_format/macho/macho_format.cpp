@@ -73,6 +73,26 @@ MachOFormat::MachOFormat(std::string pathToFile, LoadFlags loadFlags) : FileForm
 }
 
 /**
+ * Constructor
+ * @param pathToFile Path to input file
+ * @param objectIndex Index of object to load
+ * @param loadFlags Load flags
+ */
+MachOFormat::MachOFormat(std::string pathToFile, std::size_t objectIndex, LoadFlags loadFlags)
+	: FileFormat(pathToFile, loadFlags),
+	fileBuffer(MemoryBuffer::getFile(Twine(filePath))), file(nullptr), fatFile(nullptr)
+{
+	// Read magic
+	setWidthAndEndianness();
+	stateIsValid = (isFat ? constructFatMachO(objectIndex) : constructMachO());
+	if(stateIsValid)
+	{
+		load();
+	}
+}
+
+
+/**
  * Destructor
  */
 MachOFormat::~MachOFormat()
@@ -157,6 +177,35 @@ bool MachOFormat::constructMachO()
 }
 
 /**
+ * Prepare @c fatFile for constructFatMachO functions
+ * @return
+ */
+bool MachOFormat::prepareFatFile()
+{
+	auto result = MachOUniversalBinary::create(fileBuffer.get()->getMemBufferRef());
+	if(!result || !result.get()->getNumberOfObjects())
+	{
+		consumeError(result.takeError());
+		return false;
+	}
+
+	auto firstObj = result.get()->begin_objects();
+	if (firstObj == result.get()->end_objects())
+	{
+		return false;
+	}
+	auto firstData = reinterpret_cast<const char*>(getBytesData() + firstObj->getOffset());
+	if (std::strncmp("!<arch>", firstData, 7) == 0)
+	{
+		isStaticLib = true;
+		return false;
+	}
+
+	fatFile = std::move(result.get());
+	return true;
+}
+
+/**
  * Create instance of MachOUniversalBinary and MachOObjectFile
  * @return @c true on success, @c false otherwise
  */
@@ -164,26 +213,11 @@ bool MachOFormat::constructFatMachO()
 {
 	if(fileBuffer && !fileBuffer.getError())
 	{
-		auto result = MachOUniversalBinary::create(fileBuffer.get()->getMemBufferRef());
-		if(!result || !result.get()->getNumberOfObjects())
+		if(!prepareFatFile())
 		{
-			consumeError(result.takeError());
 			return false;
 		}
 
-		auto firstObj = result.get()->begin_objects();
-		if (firstObj == result.get()->end_objects())
-		{
-			return false;
-		}
-		auto firstData = reinterpret_cast<const char*>(getBytesData() + firstObj->getOffset());
-		if (std::strncmp("!<arch>", firstData, 7) == 0)
-		{
-			isStaticLib = true;
-			return false;
-		}
-
-		fatFile = std::move(result.get());
 		if(chooseArchitecture(CPU_TYPE_X86))
 		{
 			return true;
@@ -222,6 +256,52 @@ bool MachOFormat::constructFatMachO()
 }
 
 /**
+ * Create instance of MachOUniversalBinary and MachOObjectFile
+ * @param index index of object to open
+ * @return @c true on success, @c false otherwise
+ */
+bool MachOFormat::constructFatMachO(std::size_t index)
+{
+	if(fileBuffer && !fileBuffer.getError())
+	{
+		if(!prepareFatFile())
+		{
+			return false;
+		}
+
+		std::uint32_t counter = 0;
+		for(auto i = fatFile->begin_objects(), e = fatFile->end_objects(); i != e; ++i, ++counter)
+		{
+			if(index == counter && chooseArchitecture(i))
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+/**
+ * Load all data.
+ */
+void MachOFormat::load()
+{
+	if(is32)
+	{
+		header32 = file->getHeader();
+	}
+	else
+	{
+		header64 = file->getHeader64();
+	}
+	fileFormat = Format::MACHO;
+	loadCommands();
+	loadStrings();
+	loadImpHash();
+}
+
+/**
  * Init internal structures
  */
 void MachOFormat::initStructures()
@@ -232,18 +312,7 @@ void MachOFormat::initStructures()
 	stateIsValid = (isFat ? constructFatMachO() : constructMachO());
 	if(stateIsValid)
 	{
-		if(is32)
-		{
-			header32 = file->getHeader();
-		}
-		else
-		{
-			header64 = file->getHeader64();
-		}
-		fileFormat = Format::MACHO;
-		loadCommands();
-		loadStrings();
-		loadImpHash();
+		load();
 	}
 }
 

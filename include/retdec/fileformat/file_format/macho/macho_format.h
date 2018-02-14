@@ -48,11 +48,14 @@ class MachOFormat : public FileFormat
 		void setWidthAndEndianness();
 		bool chooseArchitecture(const llvm::object::MachOUniversalBinary::object_iterator &itr);
 		bool constructMachO();
+		bool prepareFatFile();
 		bool constructFatMachO();
+		bool constructFatMachO(std::size_t index);
 		/// @}
 
 		/// @name Initialization methods
 		/// @{
+		void load();
 		void initStructures();
 		/// @}
 
@@ -113,6 +116,7 @@ class MachOFormat : public FileFormat
 		std::unique_ptr<llvm::object::MachOUniversalBinary> fatFile; ///< parser of universal binary
 	public:
 		MachOFormat(std::string pathToFile, LoadFlags loadFlags = LoadFlags::NONE);
+		MachOFormat(std::string pathToFile, std::size_t objectIndex, LoadFlags loadFlags = LoadFlags::NONE);
 		virtual ~MachOFormat() override;
 
 		/// @name Byte value storage methods
