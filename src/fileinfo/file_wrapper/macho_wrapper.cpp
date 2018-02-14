@@ -18,7 +18,21 @@ namespace fileinfo {
  * @param pathToFile Path to MachO binary file
  * @param loadFlags Load flags
  */
-MachOWrapper::MachOWrapper(std::string pathToFile, retdec::fileformat::LoadFlags loadFlags) : MachOFormat(pathToFile, loadFlags)
+MachOWrapper::MachOWrapper(std::string pathToFile, retdec::fileformat::LoadFlags loadFlags)
+	: MachOFormat(pathToFile, loadFlags)
+{
+
+}
+
+/**
+ * Constructor
+ * @param pathToFile Path to MachO binary file
+ * @param objectIndex Index of object to load
+ * @param loadFlags Load flags
+ */
+MachOWrapper::MachOWrapper(std::string pathToFile, std::size_t objectIndex,
+	retdec::fileformat::LoadFlags loadFlags)
+	: MachOFormat(pathToFile, objectIndex, loadFlags)
 {
 
 }

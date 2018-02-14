@@ -23,12 +23,21 @@ namespace fileinfo {
  * @param finfo Instance of class for storing information about input file
  * @param searchPar Parameters for detection of used compiler or packer
  * @param loadFlags Load flags
+ * @param isFatMachoIdx @c true if specific Mach-O object is selected
+ * @param fatMachoIdx index of selected Mach-O object
  * @return Pointer to instance of detector or @c nullptr if any error
  *
  * Pointer to detector is dynamically allocated and must be released (otherwise there is a memory leak).
  * If format of input file is not supported, function will return @c nullptr.
  */
-FileDetector* createFileDetector(std::string pathToInputFile, retdec::fileformat::Format fileFormat, FileInformation &finfo, retdec::cpdetect::DetectParams &searchPar, retdec::fileformat::LoadFlags loadFlags)
+FileDetector* createFileDetector(
+		std::string pathToInputFile,
+		Format fileFormat,
+		FileInformation &finfo,
+		DetectParams &searchPar,
+		LoadFlags loadFlags,
+		bool isFatMachoIdx,
+		std::size_t fatMachoIdx)
 {
 	switch(fileFormat)
 	{
@@ -39,6 +48,10 @@ FileDetector* createFileDetector(std::string pathToInputFile, retdec::fileformat
 		case Format::COFF:
 			return new CoffDetector(pathToInputFile, finfo, searchPar, loadFlags);
 		case Format::MACHO:
+			if (isFatMachoIdx)
+			{
+				return new MachODetector(pathToInputFile, finfo, searchPar, fatMachoIdx, loadFlags);
+			}
 			return new MachODetector(pathToInputFile, finfo, searchPar, loadFlags);
 		case Format::INTEL_HEX:
 			return new IntelHexDetector(pathToInputFile, finfo, searchPar, loadFlags);

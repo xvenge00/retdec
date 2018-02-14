@@ -18,6 +18,7 @@ class MachOWrapper : public retdec::fileformat::MachOFormat
 {
 	public:
 		MachOWrapper(std::string pathToFile, retdec::fileformat::LoadFlags loadFlags);
+		MachOWrapper(std::string pathToFile, std::size_t objectIndex, retdec::fileformat::LoadFlags loadFlags);
 		virtual ~MachOWrapper() override;
 
 		/// @name Detection methods

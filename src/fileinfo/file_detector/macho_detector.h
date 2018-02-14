@@ -40,7 +40,10 @@ class MachODetector : public FileDetector
 		virtual retdec::cpdetect::CompilerDetector* createCompilerDetector() const override;
 		/// @}
 	public:
-		MachODetector(std::string pathToInputFile, FileInformation &finfo, retdec::cpdetect::DetectParams &searchPar, retdec::fileformat::LoadFlags loadFlags);
+		MachODetector(std::string pathToInputFile, FileInformation &finfo, retdec::cpdetect::DetectParams &searchPar,
+						retdec::fileformat::LoadFlags loadFlags);
+		MachODetector(std::string pathToInputFile, FileInformation &finfo, retdec::cpdetect::DetectParams &searchPar,
+						std::size_t objectIndex, retdec::fileformat::LoadFlags loadFlags);
 		virtual ~MachODetector() override;
 		bool isMachoUniversalArchive();
 };

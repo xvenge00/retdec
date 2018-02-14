@@ -27,10 +27,27 @@ namespace fileinfo {
  * @param searchPar Parameters for detection of used compiler (or packer)
  * @param loadFlags Load flags
  */
-MachODetector::MachODetector(std::string pathToInputFile, FileInformation &finfo, retdec::cpdetect::DetectParams &searchPar, retdec::fileformat::LoadFlags loadFlags) :
-	FileDetector(pathToInputFile, finfo, searchPar, loadFlags)
+MachODetector::MachODetector(std::string pathToInputFile, FileInformation &finfo,
+	retdec::cpdetect::DetectParams &searchPar, retdec::fileformat::LoadFlags loadFlags)
+	: FileDetector(pathToInputFile, finfo, searchPar, loadFlags)
 {
 	fileParser = machoParser = std::make_shared<MachOWrapper>(fileInfo.getPathToFile(), loadFlags);
+	loaded = machoParser->isInValidState();
+}
+
+/**
+ * Constructor
+ * @param pathToInputFile Path to input file
+ * @param finfo Instance of class for storing information about file
+ * @param searchPar Parameters for detection of used compiler (or packer)
+ * @param objectIndex Index of object to load
+ * @param loadFlags Load flags
+ */
+MachODetector::MachODetector(std::string pathToInputFile, FileInformation &finfo,
+	retdec::cpdetect::DetectParams &searchPar, std::size_t objectIndex, retdec::fileformat::LoadFlags loadFlags)
+	: FileDetector(pathToInputFile, finfo, searchPar, loadFlags)
+{
+	fileParser = machoParser = std::make_shared<MachOWrapper>(fileInfo.getPathToFile(), objectIndex, loadFlags);
 	loaded = machoParser->isInValidState();
 }
 

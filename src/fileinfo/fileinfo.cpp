@@ -44,6 +44,8 @@ struct ProgParams
 	bool verbose;                           ///< print all detected information (except strings)
 	bool explanatory;                       ///< print explanatory notes
 	bool generateConfigFile;                ///< flag for generating config file
+	bool isFatMachoIdx;                     ///< user selected Mach-O object
+	std::size_t fatMachoIndex;              ///< index of selected object in fat Mach-O
 	std::string configFile;                 ///< name of the config file
 	std::set<std::string> yaraMalwarePaths; ///< paths to YARA malware rules
 	std::set<std::string> yaraCryptoPaths;  ///< paths to YARA crypto rules
@@ -57,6 +59,8 @@ struct ProgParams
 					verbose(false),
 					explanatory(false),
 					generateConfigFile(false),
+					isFatMachoIdx(false),
+					fatMachoIndex(0),
 					loadFlags(LoadFlags::NONE) {}
 };
 
@@ -109,6 +113,9 @@ void printHelp()
 				<< "Usage: fileinfo [options] file\n\n"
 				<< "Options list:\n"
 				<< "    --help, -h            Display this help.\n"
+				<< "    --fat-macho-index=IDX Pick object from fat Mach-O binary on IDX position.\n"
+				<< "                          Index is zero-based. If unused, preffered architecture is\n"
+				<< "                          picked. Ignored if file is not Mach-O universal binary.\n."
 				<< "\n"
 				<< "Options specifying type of YARA patterns matching for detection of used compiler\n"
 				<< "or packer:\n"
@@ -197,7 +204,7 @@ bool doParams(int argc, char **_argv, ProgParams &params)
 	std::vector<std::string> argv;
 
 	std::set<std::string> withArgs = {"malware", "m", "crypto", "C", "other",
-			"o", "config", "c", "no-hashes"};
+			"o", "config", "c", "no-hashes", "fat-macho-index"};
 	for (int i = 1; i < argc; ++i)
 	{
 		std::string a = _argv[i];
@@ -288,6 +295,15 @@ bool doParams(int argc, char **_argv, ProgParams &params)
 		else if (c == "-o" || c == "--other")
 		{
 			params.yaraOtherPaths.insert(getParamOrDie(argv, i));
+		}
+		else if (c == "--fat-macho-index")
+		{
+			params.isFatMachoIdx = true;
+			const auto arg = getParamOrDie(argv, i);
+			if (!strToNum(arg, params.fatMachoIndex))
+			{
+				return false;
+			}
 		}
 		else if (c == "--no-hashes")
 		{
@@ -392,7 +408,9 @@ int main(int argc, char* argv[])
 		}
 		default:
 		{
-			fileDetector = createFileDetector(params.filePath, fileFormat, fileinfo, searchPar, params.loadFlags);
+			fileDetector = createFileDetector(
+						params.filePath, fileFormat, fileinfo, searchPar,
+						params.loadFlags, params.isFatMachoIdx, params.fatMachoIndex);
 			if(fileDetector)
 			{
 				if(!fileDetector->getFileParser()->isInValidState())
@@ -429,6 +447,7 @@ int main(int argc, char* argv[])
 					fileinfo.setStatus(ReturnCode::UNKNOWN_FORMAT);
 				}
 			}
+
 			PatternDetector patternDetector(fileDetector ? fileDetector->getFileParser() : nullptr, fileinfo);
 			patternDetector.addFilePaths("malware", params.yaraMalwarePaths);
 			patternDetector.addFilePaths("crypto", params.yaraCryptoPaths);

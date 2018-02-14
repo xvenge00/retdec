@@ -11,7 +11,14 @@
 
 namespace fileinfo {
 
-FileDetector* createFileDetector(std::string pathToInputFile, retdec::fileformat::Format fileFormat, FileInformation &finfo, retdec::cpdetect::DetectParams &searchPar, retdec::fileformat::LoadFlags loadFlags);
+FileDetector* createFileDetector(
+		std::string pathToInputFile,
+		retdec::fileformat::Format fileFormat,
+		FileInformation &finfo,
+		retdec::cpdetect::DetectParams &searchPar,
+		retdec::fileformat::LoadFlags loadFlags,
+		bool isFatMachoIdx = false,
+		std::size_t fatMachoIdx = 0);
 
 } // namespace fileinfo
 
