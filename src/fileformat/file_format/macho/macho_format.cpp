@@ -184,8 +184,6 @@ bool MachOFormat::constructFatMachO()
 		}
 
 		fatFile = std::move(result.get());
-
-		/// @todo strange order of prefered architectures - ppc64 before x64??
 		if(chooseArchitecture(CPU_TYPE_X86))
 		{
 			return true;
@@ -194,19 +192,19 @@ bool MachOFormat::constructFatMachO()
 		{
 			return true;
 		}
-		else if(chooseArchitecture(CPU_TYPE_ARM64))
-		{
-			return true;
-		}
 		else if(chooseArchitecture(CPU_TYPE_POWERPC))
 		{
 			return true;
 		}
-		else if(chooseArchitecture(CPU_TYPE_POWERPC64))
+		else if(chooseArchitecture(CPU_TYPE_X86_64))
 		{
 			return true;
 		}
-		else if(chooseArchitecture(CPU_TYPE_X86_64))
+		else if(chooseArchitecture(CPU_TYPE_ARM64))
+		{
+			return true;
+		}
+		else if(chooseArchitecture(CPU_TYPE_POWERPC64))
 		{
 			return true;
 		}
