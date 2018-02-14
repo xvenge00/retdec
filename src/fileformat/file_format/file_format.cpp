@@ -246,6 +246,10 @@ void FileFormat::clear()
 	delete pdbInfo;
 	delete certificateTable;
 
+	// Important for fat Mach-O reloads
+	importTable = nullptr;
+	exportTable = nullptr;
+
 	for(auto *item : sections)
 	{
 		delete item;
