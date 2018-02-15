@@ -114,7 +114,7 @@ void printHelp()
 				<< "Options list:\n"
 				<< "    --help, -h            Display this help.\n"
 				<< "    --fat-macho-index=IDX Pick object from fat Mach-O binary on IDX position.\n"
-				<< "                          Index is zero-based. If unused, preffered architecture is\n"
+				<< "                          Index is zero-based. If unused, preferred architecture is\n"
 				<< "                          picked. Ignored if file is not Mach-O universal binary.\n."
 				<< "\n"
 				<< "Options specifying type of YARA patterns matching for detection of used compiler\n"
