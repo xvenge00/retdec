@@ -279,7 +279,7 @@ class Capstone2LlvmIrTranslatorTests : public ::testing::Test
 			auto* ret = irb.CreateRetVoid();
 			irb.SetInsertPoint(ret);
 
-			_translator->translate(asmBytes, addr, irb);
+			_translator->translate(asmBytes.data(), asmBytes.size(), addr, irb);
 
 			return f;
 		}

@@ -1243,12 +1243,20 @@ if (jt.type == JumpTarget::eType::DELAY_SLOT)
 	size = 4;
 }
 
-		std::vector<std::uint8_t> code;
-		std::vector<std::uint64_t> tmp;
-		_image->getImage()->get1ByteArray(start, tmp, size);
-		std::copy(tmp.begin(), tmp.end(), std::back_inserter(code)); // TODO: no copy -> slow
+//		std::vector<std::uint8_t> code;
+//		std::vector<std::uint64_t> tmp;
+//		_image->getImage()->get1ByteArray(start, tmp, size);
+//		std::copy(tmp.begin(), tmp.end(), std::back_inserter(code)); // TODO: no copy -> slow
 
-		LOG << "\t\tsize to decode : " << size << " vs. " << code.size() << std::endl;
+
+		auto code = _image->getImage()->getRawSegmentData(start);
+		assert(code.first);
+
+		LOG << "\t\tsize to decode : " << size << " vs. " << code.second << std::endl;
+		if (code.second > size)
+		{
+			code.second = size;
+		}
 
 cs_mode modeAround = CS_MODE_BIG_ENDIAN;
 
@@ -1321,7 +1329,7 @@ LOG << "===========> SWITCH MODE #2 " << _currentMode << " -> " << jt.mode << st
 	}
 }
 
-		auto tRes = _c2l->translate(code, start, irb, true);
+		auto tRes = _c2l->translate(code.first, code.second, start, irb, 0, true);
 		if (tRes.failed())
 		{
 			LOG << "\t\ttranslation failed" << std::endl;

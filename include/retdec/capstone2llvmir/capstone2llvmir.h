@@ -299,29 +299,69 @@ class Capstone2LlvmIrTranslator
 	public:
 		struct TranslationResult
 		{
-			llvm::StoreInst* first = nullptr;
-			llvm::StoreInst* last = nullptr;
-			std::size_t size = 0;
-			/// This is any branch type. i.e. call, return, branch, cond branch.
-			llvm::CallInst* branchCall = nullptr;
-			bool inCondition = false;
 			bool failed() const { return size == 0; }
+
+			/// First translated special LLVM IR instruction used for
+			/// LLVM IR <-> Capstone instruction mapping.
+			llvm::StoreInst* first = nullptr;
+			/// Last translated special LLVM IR instruction used for
+			/// LLVM IR <-> Capstone instruction mapping.
+			llvm::StoreInst* last = nullptr;
+			/// Byte size of the translated binary chunk.
+			std::size_t size = 0;
+			/// Number of translated assembly instructions.
+			std::size_t count = 0;
+			/// If @c stopOnBranch was set, this is set to the terminating
+			/// branch instruction (any type, i.e. call, return, branch, cond
+			/// branch), or @c nullptr if there was no such instruction.
+			llvm::CallInst* branchCall = nullptr;
+			/// @c True if the generated branch is in conditional code,
+			/// e.g. uncond branch in if-then.
+			bool inCondition = false;
 		};
 
 		/**
-		 * Translate @p bytes from address @p a to LLVM IR instructions located
-		 * at position of LLVM IR builder @p irb. If @p stopOnBranch is set,
-		 * translation aborts after any kind of branch (call, return, branch,
-		 * conditional branch) is translated.
+		 * Translate the given bytes.
+		 * @param bytes Bytes to translate.
+		 *              This will be updated to point to the next instruction.
+		 * @param size  Size of the @p bytes buffer.
+		 *              This will be updated to reflect @p bytes update.
+		 * @param a     Memory address where @p bytes are located.
+		 * @param irb   LLVM IR builder used to create LLVM IR translation.
+		 *              Translated LLVM IR instructions are created at its
+		 *              current position.
+		 * @param count Number of assembly instructions to translate, or 0 to
+		 *              translate them all.
+		 * @param stopOnBranch If set, the translation aborts after any kind of
+		 *              branch is encountered (call, return, branch, conditional
+		 *              branch).
+		 * @return See @c TranslationResult structure.
 		 */
 		virtual TranslationResult translate(
-				const std::vector<uint8_t>& bytes,
+				const uint8_t* bytes,
+				std::size_t size,
 				retdec::utils::Address a,
 				llvm::IRBuilder<>& irb,
+				std::size_t count = 0,
 				bool stopOnBranch = false) = 0;
+		/**
+		 * Translate one assembly instruction from the given bytes.
+		 * @param bytes Bytes to translate.
+		 * @param size  Size of the @p bytes buffer.
+		 * @param a     Memory address where @p bytes are located.
+		 * @param irb   LLVM IR builder used to create LLVM IR translation.
+		 *              Translated LLVM IR instructions are created at its
+		 *              current position.
+		 * @return See @c TranslationResult structure.
+		 */
+		virtual TranslationResult translate(
+				const uint8_t*& bytes,
+				std::size_t& size,
+				retdec::utils::Address a,
+				llvm::IRBuilder<>& irb) = 0;
 //
 //==============================================================================
-// Capstone related getters.
+// Capstone related getters and query methods.
 //==============================================================================
 //
 	public:

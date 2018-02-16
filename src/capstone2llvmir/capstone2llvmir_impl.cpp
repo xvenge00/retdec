@@ -90,31 +90,60 @@ uint32_t Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::getArchBitSize()
 //==============================================================================
 //
 
+// TODO: Optimize -- to make generation easier and nicer, some things
+// can be generated suboptimally. We should inspect every generated
+// ASM insruction and optimize some known patterns:
+//
+// 1. Load propagation:
+// a = load r
+// ... use a, not change r, no fnc call, etc.
+// b = load r
+// ... use b -> replace by a, remove b
+//
+// 2. Conversions:
+// a = cast b
+// ... use a
+// c = cast b
+// ... use c -> replace by a, remove c
+//
+// 3. Unused values (e.g. from loadOpBinary() where only one op used):
+// a = load x
+// ... a unused
+//
+// 4. Values used only for their type (e.g. op0 load in translateMov()):
+// a = load x
+// b = load y
+// c = convert b to a.type
+// store c x
+//
+// etc.
+
 template <typename CInsn, typename CInsnOp>
 typename Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::TranslationResult
 Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::translate(
-		const std::vector<uint8_t>& bytes,
+		const uint8_t* bytes,
+		std::size_t size,
 		retdec::utils::Address a,
 		llvm::IRBuilder<>& irb,
+		std::size_t count,
 		bool stopOnBranch)
 {
 	TranslationResult res;
 
+	// We want to keep all Capstone instructions -> alloc a new one each time.
 	cs_insn* insn = cs_malloc(_handle);
 
-	const uint8_t* code = bytes.data();
-	size_t size = bytes.size();
 	uint64_t address = a;
 
 	_branchGenerated = nullptr;
 	_inCondition = false;
 
 	// TODO: hack, solve better.
-	bool disasmRes = cs_disasm_iter(_handle, &code, &size, &address, insn);
+	bool disasmRes = cs_disasm_iter(_handle, &bytes, &size, &address, insn);
 	if (!disasmRes && _arch == CS_ARCH_MIPS && _basicMode == CS_MODE_MIPS32)
 	{
 		modifyBasicMode(CS_MODE_MIPS64);
-		disasmRes = cs_disasm_iter(_handle, &code, &size, &address, insn);
+		disasmRes = cs_disasm_iter(_handle, &bytes, &size, &address, insn);
 		modifyBasicMode(CS_MODE_MIPS32);
 	}
 
@@ -130,33 +159,11 @@ Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::translate(
 
 		translateInstruction(insn, irb);
 
-		// TODO: Optimize -- to make generation easier and nicer, some things
-		// can be generated suboptimally. We should inspect every generated
-		// ASM insruction and optimize some known patterns:
-		//
-		// 1. Load propagation:
-		// a = load r
-		// ... use a, not change r, no fnc call, etc.
-		// b = load r
-		// ... use b -> replace by a, remove b
-		//
-		// 2. Conversions:
-		// a = cast b
-		// ... use a
-		// c = cast b
-		// ... use c -> replace by a, remove c
-		//
-		// 3. Unused values (e.g. from loadOpBinary() where only one op used):
-		// a = load x
-		// ... a unused
-		//
-		// 4. Values used only for their type (e.g. op0 load in translateMov()):
-		// a = load x
-		// b = load y
-		// c = convert b to a.type
-		// store c x
-		//
-		// etc.
+		++res.count;
+		if (count && count == res.count)
+		{
+			return res;
+		}
 
 		if (_branchGenerated && stopOnBranch)
 		{
@@ -168,11 +175,11 @@ Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::translate(
 		insn = cs_malloc(_handle);
 
 		// TODO: hack, solve better.
-		disasmRes = cs_disasm_iter(_handle, &code, &size, &address, insn);
+		disasmRes = cs_disasm_iter(_handle, &bytes, &size, &address, insn);
 		if (!disasmRes && _arch == CS_ARCH_MIPS && _basicMode == CS_MODE_MIPS32)
 		{
 			modifyBasicMode(CS_MODE_MIPS64);
-			disasmRes = cs_disasm_iter(_handle, &code, &size, &address, insn);
+			disasmRes = cs_disasm_iter(_handle, &bytes, &size, &address, insn);
 			modifyBasicMode(CS_MODE_MIPS32);
 		}
 	}
@@ -181,6 +188,52 @@ Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::translate(
 	// -> throw || or signal this to user (decoder).
 
 	cs_free(insn, 1);
+
+	return res;
+}
+
+template <typename CInsn, typename CInsnOp>
+typename Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::TranslationResult
+Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::translate(
+		const uint8_t*& bytes,
+		std::size_t& size,
+		retdec::utils::Address a,
+		llvm::IRBuilder<>& irb)
+{
+	TranslationResult res;
+
+	// We want to keep all Capstone instructions -> alloc a new one each time.
+	cs_insn* insn = cs_malloc(_handle);
+
+	uint64_t address = a;
+	_branchGenerated = nullptr;
+	_inCondition = false;
+
+	// TODO: hack, solve better.
+	bool disasmRes = cs_disasm_iter(_handle, &bytes, &size, &address, insn);
+	if (!disasmRes && _arch == CS_ARCH_MIPS && _basicMode == CS_MODE_MIPS32)
+	{
+		modifyBasicMode(CS_MODE_MIPS64);
+		disasmRes = cs_disasm_iter(_handle, &bytes, &size, &address, insn);
+		modifyBasicMode(CS_MODE_MIPS32);
+	}
+
+	if (disasmRes)
+	{
+		auto* a2l = generateSpecialAsm2LlvmInstr(irb, insn);
+		translateInstruction(insn, irb);
+
+		res.first = a2l;
+		res.last = a2l;
+		res.size = insn->size;
+		res.count = 0;
+		res.branchCall = _branchGenerated;
+		res.inCondition = _inCondition;
+	}
+	else
+	{
+		cs_free(insn, 1);
+	}
 
 	return res;
 }

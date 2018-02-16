@@ -365,7 +365,7 @@ int main(int argc, char *argv[])
 				&module,
 				po.basicMode,
 				po.extraMode);
-		c2l->translate(po.code, po.base, irb);
+		c2l->translate(po.code.data(), po.code.size(), po.base, irb);
 	}
 	catch (const Capstone2LlvmIrBaseError& e)
 	{
