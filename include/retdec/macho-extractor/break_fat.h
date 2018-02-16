@@ -19,39 +19,58 @@ class BreakMachOUniversal
 {
 	private:
 		bool valid = false;
-		std::string filePath;
-		std::unique_ptr<llvm::object::MachOUniversalBinary> fatFile;
-		llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> fileBuffer;
+		bool isStatic = false;
+
+		std::string path;
+		std::unique_ptr<llvm::object::MachOUniversalBinary> file;
+		llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> buffer;
 
 		/// @brief Auxiliary methods
 		/// @{
-		bool isStaticLibrary();
-		bool isSupported(std::uint32_t cpuType);
+		bool isArchive();
 		const char* getFileBufferStart();
-		bool getByArchFamily(std::uint32_t cpuType, llvm::object::MachOUniversalBinary::object_iterator &res);
-		bool extract(llvm::object::MachOUniversalBinary::object_iterator &object, const std::string &outPath);
-		bool getObjectNamesForArchive(std::uintptr_t archOffset , std::size_t archSize, std::vector<std::string> &result);
-		std::string cpuTypeToString(std::uint32_t cpuType);
+		bool getByArchFamily(
+				std::uint32_t cpuType,
+				llvm::object::MachOUniversalBinary::object_iterator &res);
+		bool extract(
+				llvm::object::MachOUniversalBinary::object_iterator &object,
+				const std::string &outPath);
+		bool getObjectNamesForArchive(
+				std::uintptr_t archOffset ,
+				std::size_t archSize,
+				std::vector<std::string> &result);
 		/// @}
 
 	public:
-		BreakMachOUniversal(const std::string &filePath);
+		BreakMachOUniversal(const std::string &path);
 		~BreakMachOUniversal();
 
 		/// @brief Information methods
 		/// @{
 		bool isValid();
-		bool listArchitectures(std::ostream &output, bool withObjects = false);
-		bool listArchitecturesJson(std::ostream &output, bool withObjects = false);
+		bool isStaticLibrary();
+		bool listArchitectures(
+				std::ostream &output,
+				bool withObjects = false);
+		bool listArchitecturesJson(
+				std::ostream &output,
+				bool withObjects = false);
 		/// @}
 
 		/// @brief Extracting methods
 		/// @{
 		bool extractAllArchives();
-		bool extractBestArchive(const std::string &outPath);
-		bool extractArchiveWithIndex(unsigned index, const std::string &outPath);
-		bool extractArchiveForFamily(const std::string &archFamilyName, const std::string &outPath);
-		bool extractArchiveForArchitecture(const std::string &machoArchName, const std::string &outPath);
+		bool extractBestArchive(
+				const std::string &outPath);
+		bool extractArchiveWithIndex(
+				unsigned index,
+				const std::string &outPath);
+		bool extractArchiveForFamily(
+				const std::string &familyName,
+				const std::string &outPath);
+		bool extractArchiveForArchitecture(
+				const std::string &machoArchName,
+				const std::string &outPath);
 		/// @}
 };
 
