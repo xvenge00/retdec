@@ -323,9 +323,7 @@ class Capstone2LlvmIrTranslator
 		/**
 		 * Translate the given bytes.
 		 * @param bytes Bytes to translate.
-		 *              This will be updated to point to the next instruction.
 		 * @param size  Size of the @p bytes buffer.
-		 *              This will be updated to reflect @p bytes update.
 		 * @param a     Memory address where @p bytes are located.
 		 * @param irb   LLVM IR builder used to create LLVM IR translation.
 		 *              Translated LLVM IR instructions are created at its
@@ -347,7 +345,9 @@ class Capstone2LlvmIrTranslator
 		/**
 		 * Translate one assembly instruction from the given bytes.
 		 * @param bytes Bytes to translate.
+		 *              This will be updated to point to the next instruction.
 		 * @param size  Size of the @p bytes buffer.
+		 *              This will be updated to reflect @p bytes update.
 		 * @param a     Memory address where @p bytes are located.
 		 * @param irb   LLVM IR builder used to create LLVM IR translation.
 		 *              Translated LLVM IR instructions are created at its
