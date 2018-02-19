@@ -474,6 +474,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 	{
 		LOG << "\t\t\t translating = " << addr << std::endl;
 		auto res = _c2l->translateOne(bytes.first, bytes.second, addr, irb);
+		_llvm2capstone[res.llvmInsn] = res.capstoneInsn;
 		AsmInstruction ai(res.llvmInsn);
 		if (res.failed() || res.llvmInsn == nullptr || ai.isInvalid())
 		{
