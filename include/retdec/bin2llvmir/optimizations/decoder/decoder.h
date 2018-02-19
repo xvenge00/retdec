@@ -26,6 +26,47 @@
 namespace retdec {
 namespace bin2llvmir {
 
+class PseudoCallWorklist
+{
+	public:
+		void addPseudoCall(llvm::CallInst* c);
+		void addPseudoBr(llvm::CallInst* c);
+		void addPseudoCondBr(llvm::CallInst* c);
+		void addPseudoReturn(llvm::CallInst* c);
+
+		void setTargetFunction(llvm::CallInst* c, llvm::Function* f);
+		void setTargetBbTrue(llvm::CallInst* c, llvm::BasicBlock* b);
+		void setTargetBbFalse(llvm::CallInst* c, llvm::BasicBlock* b);
+
+	private:
+		enum class eType
+		{
+			CALL,
+			BR,
+			COND_BR,
+			RETURN,
+		};
+
+	private:
+		struct PseudoCall
+		{
+			PseudoCall(eType t, llvm::CallInst* c) :
+				type(t),
+				pseudoCall(c)
+			{}
+
+			eType type;
+			llvm::CallInst* pseudoCall = nullptr;
+
+			llvm::Function* targetFunction = nullptr;
+			llvm::BasicBlock* targetBbTrue = nullptr;
+			llvm::BasicBlock* targetBbFalse = nullptr;
+		};
+
+	private:
+		std::map<llvm::CallInst*, PseudoCall> _worklist;
+};
+
 class Decoder : public llvm::ModulePass
 {
 	public:
@@ -111,6 +152,8 @@ class Decoder : public llvm::ModulePass
 		std::map<llvm::BasicBlock*, retdec::utils::Address> _bb2addr;
 
 		std::map<llvm::StoreInst*, cs_insn*> _llvm2capstone;
+
+		PseudoCallWorklist _pseudoWorklist;
 
 		const std::string _asm2llvmGv = "_asm_program_counter";
 		const std::string _asm2llvmMd = "llvmToAsmGlobalVariableName";

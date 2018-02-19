@@ -509,6 +509,9 @@ llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 	else if (jt.type == JumpTarget::eType::CONTROL_FLOW_COND_BR_FALSE)
 	{
 		auto* bb = createBasicBlock(jt.address, jt.getName(), jt.fromInst);
+		_pseudoWorklist.setTargetBbFalse(
+				llvm::cast<llvm::CallInst>(jt.fromInst),
+				bb);
 		return llvm::IRBuilder<>(bb->getTerminator());
 	}
 	else if (jt.type == JumpTarget::eType::CONTROL_FLOW_COND_BR_TRUE)
@@ -537,6 +540,10 @@ llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 					targetFnc,
 					nextBb);
 
+			_pseudoWorklist.setTargetBbTrue(
+					llvm::cast<llvm::CallInst>(jt.fromInst),
+					newBb);
+
 			return llvm::IRBuilder<>(newBb->getTerminator());
 		}
 		else
@@ -553,6 +560,11 @@ llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 		if (targetFnc == nullptr)
 		{
 			auto* f = createFunction(jt.address, jt.getName());
+
+			_pseudoWorklist.setTargetFunction(
+					llvm::cast<llvm::CallInst>(jt.fromInst),
+					f);
+
 			return llvm::IRBuilder<>(&f->front().front());
 		}
 		else if (targetFnc == fromFnc)
@@ -570,6 +582,10 @@ llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 					jt.getName(),
 					targetFnc,
 					nextBb);
+
+			_pseudoWorklist.setTargetBbTrue(
+					llvm::cast<llvm::CallInst>(jt.fromInst),
+					newBb);
 
 			return llvm::IRBuilder<>(newBb->getTerminator());
 		}
@@ -591,6 +607,11 @@ llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 			else
 			{
 				auto* f = createFunction(jt.address, jt.getName());
+
+				_pseudoWorklist.setTargetFunction(
+						llvm::cast<llvm::CallInst>(jt.fromInst),
+						f);
+
 				return llvm::IRBuilder<>(&f->front().front());
 			}
 		}
@@ -610,6 +631,10 @@ llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 		}
 		else if (auto* f = createFunction(jt.address, jt.getName()))
 		{
+			_pseudoWorklist.setTargetFunction(
+					llvm::cast<llvm::CallInst>(jt.fromInst),
+					f);
+
 			return llvm::IRBuilder<>(&f->front().front());
 		}
 	}
@@ -652,6 +677,8 @@ bool Decoder::getJumpTargetsFromInstruction(
 				tr.branchCall);
 		LOG << "\t\t" << "call @ " << addr << " next " << nextAddr << std::endl;
 
+		_pseudoWorklist.addPseudoCall(tr.branchCall);
+
 		return true;
 	}
 	// Return -> insert target (if computed).
@@ -672,13 +699,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 			LOG << "\t\t" << "return @ " << addr << " -> " << t << std::endl;
 		}
 
-		auto* f = ai.getFunction();
-		llvm::ReturnInst::Create(
-				_module->getContext(),
-				llvm::UndefValue::get(f->getReturnType()),
-				tr.branchCall);
-		tr.branchCall->eraseFromParent();
-		tr.branchCall = nullptr;
+		_pseudoWorklist.addPseudoReturn(tr.branchCall);
 
 		return true;
 	}
@@ -696,6 +717,8 @@ bool Decoder::getJumpTargetsFromInstruction(
 					tr.branchCall);
 			LOG << "\t\t" << "br @ " << addr << " -> "	<< t << std::endl;
 		}
+
+		_pseudoWorklist.addPseudoBr(tr.branchCall);
 
 		return true;
 	}
@@ -722,6 +745,8 @@ bool Decoder::getJumpTargetsFromInstruction(
 				tr.branchCall);
 		LOG << "\t\t" << "cond br @ " << addr << " -> (false) "
 				<< nextAddr << std::endl;
+
+		_pseudoWorklist.addPseudoCondBr(tr.branchCall);
 
 		return true;
 	}
@@ -932,6 +957,112 @@ llvm::BasicBlock* Decoder::getBasicBlock(retdec::utils::Address a)
 {
 	auto fIt = _addr2bb.find(a);
 	return fIt != _addr2bb.end() ? fIt->second : nullptr;
+}
+
+//
+//==============================================================================
+// PseudoCallWorklist
+//==============================================================================
+//
+
+void PseudoCallWorklist::addPseudoCall(llvm::CallInst* c)
+{
+	_worklist.emplace(c, PseudoCall(eType::CALL, c));
+}
+
+void PseudoCallWorklist::addPseudoBr(llvm::CallInst* c)
+{
+	_worklist.emplace(c, PseudoCall(eType::BR, c));
+}
+
+void PseudoCallWorklist::addPseudoCondBr(llvm::CallInst* c)
+{
+	_worklist.emplace(c, PseudoCall(eType::COND_BR, c));
+}
+
+void PseudoCallWorklist::addPseudoReturn(llvm::CallInst* c)
+{
+	// TODO: right now, we replace return right away,
+	// this could be done later.
+//	_worklist.emplace(c, PseudoCall(eType::RETURN, c));
+
+	auto* f = c->getFunction();
+	llvm::ReturnInst::Create(
+			c->getModule()->getContext(),
+			llvm::UndefValue::get(f->getReturnType()),
+			c);
+	c->eraseFromParent();
+}
+
+void PseudoCallWorklist::setTargetFunction(llvm::CallInst* c, llvm::Function* f)
+{
+	auto fIt = _worklist.find(c);
+	if (fIt == _worklist.end())
+	{
+		assert(false);
+		return;
+	}
+	PseudoCall& pc = fIt->second;
+
+	assert(pc.type == eType::CALL || pc.type == eType::BR);
+
+	llvm::CallInst::Create(f, "shit", pc.pseudoCall);
+	pc.pseudoCall->eraseFromParent();
+	_worklist.erase(pc.pseudoCall);
+}
+
+void PseudoCallWorklist::setTargetBbTrue(llvm::CallInst* c, llvm::BasicBlock* b)
+{
+	auto fIt = _worklist.find(c);
+	if (fIt == _worklist.end())
+	{
+		assert(false);
+		return;
+	}
+	PseudoCall& pc = fIt->second;
+
+	assert(pc.type == eType::BR || pc.type == eType::COND_BR);
+
+	if (pc.type == eType::BR)
+	{
+		llvm::BranchInst::Create(b, pc.pseudoCall);
+		pc.pseudoCall->eraseFromParent();
+		_worklist.erase(pc.pseudoCall);
+	}
+	else if (pc.type == eType::COND_BR && pc.targetBbFalse)
+	{
+		llvm::BranchInst::Create(
+				b,
+				pc.targetBbFalse,
+				pc.pseudoCall->getOperand(0),
+				pc.pseudoCall);
+		pc.pseudoCall->eraseFromParent();
+		_worklist.erase(pc.pseudoCall);
+	}
+}
+
+void PseudoCallWorklist::setTargetBbFalse(llvm::CallInst* c, llvm::BasicBlock* b)
+{
+	auto fIt = _worklist.find(c);
+	if (fIt == _worklist.end())
+	{
+		assert(false);
+		return;
+	}
+	PseudoCall& pc = fIt->second;
+
+	assert(pc.type == eType::COND_BR);
+
+	if (pc.targetBbTrue)
+	{
+		llvm::BranchInst::Create(
+				pc.targetBbTrue,
+				b,
+				pc.pseudoCall->getOperand(0),
+				pc.pseudoCall);
+		pc.pseudoCall->eraseFromParent();
+		_worklist.erase(pc.pseudoCall);
+	}
 }
 
 } // namespace bin2llvmir
