@@ -60,10 +60,10 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 				llvm::IRBuilder<>& irb,
 				std::size_t count = 0,
 				bool stopOnBranch = false) override;
-		virtual TranslationResult translate(
+		virtual TranslationResult translateOne(
 				const uint8_t*& bytes,
 				std::size_t& size,
-				retdec::utils::Address a,
+				retdec::utils::Address& a,
 				llvm::IRBuilder<>& irb) override;
 //
 //==============================================================================

@@ -25,8 +25,16 @@ class JumpTarget
 		 */
 		enum class eType
 		{
-			ENTRY_POINT = 0,
-			CONTROL_FLOW_CALL,
+			//
+			CONTROL_FLOW_CALL_AFTER = 0,
+			CONTROL_FLOW_COND_BR_FALSE,
+			CONTROL_FLOW_COND_BR_TRUE,
+			CONTROL_FLOW_BR_TARGET,
+			CONTROL_FLOW_CALL_TARGET,
+			CONTROL_FLOW_RETURN_TARGET,
+			//
+			ENTRY_POINT,
+			//
 			UNKNOWN,
 		};
 
@@ -36,11 +44,18 @@ class JumpTarget
 				retdec::utils::Address a,
 				eType t,
 				cs_mode m,
-				retdec::utils::Address f = retdec::utils::Address::getUndef,
+				retdec::utils::Address f,
+				const std::string& n = "");
+		JumpTarget(
+				retdec::utils::Address a,
+				eType t,
+				cs_mode m,
+				llvm::Instruction* f,
 				const std::string& n = "");
 
 		bool operator<(const JumpTarget& o) const;
 		bool createFunction() const;
+		bool doDryRun() const;
 
 		bool hasName() const;
 		std::string getName() const;
@@ -56,6 +71,7 @@ class JumpTarget
 		/// If jump target is code pointer, this is an address where
 		/// it was found;
 		retdec::utils::Address from;
+		llvm::Instruction* fromInst = nullptr;
 		eType type = eType::UNKNOWN;
 		cs_mode mode = CS_MODE_BIG_ENDIAN;
 
@@ -80,17 +96,15 @@ class JumpTargets
 		void push(
 				retdec::utils::Address a,
 				JumpTarget::eType t,
-				cs_mode m);
+				cs_mode m,
+				retdec::utils::Address f,
+				const std::string& n = "");
 		void push(
 				retdec::utils::Address a,
 				JumpTarget::eType t,
 				cs_mode m,
-				retdec::utils::Address f);
-		void push(
-				retdec::utils::Address a,
-				JumpTarget::eType t,
-				cs_mode m,
-				const std::string name);
+				llvm::Instruction* f,
+				const std::string& n = "");
 
 	friend std::ostream& operator<<(std::ostream &out, const JumpTargets& jts);
 

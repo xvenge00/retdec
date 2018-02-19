@@ -35,6 +35,21 @@ JumpTarget::JumpTarget(
 	setName(n);
 }
 
+JumpTarget::JumpTarget(
+		retdec::utils::Address a,
+		eType t,
+		cs_mode m,
+		llvm::Instruction* f,
+		const std::string& n)
+		:
+		address(a),
+		fromInst(f),
+		type(t),
+		mode(m)
+{
+	setName(n);
+}
+
 bool JumpTarget::operator<(const JumpTarget& o) const
 {
 	if (type == o.type)
@@ -50,7 +65,13 @@ bool JumpTarget::operator<(const JumpTarget& o) const
 bool JumpTarget::createFunction() const
 {
 	return type == eType::ENTRY_POINT
-			|| type == eType::CONTROL_FLOW_CALL
+			|| type == eType::CONTROL_FLOW_CALL_TARGET
+			;
+}
+
+bool JumpTarget::doDryRun() const
+{
+	return type == eType::CONTROL_FLOW_CALL_AFTER
 			;
 }
 
@@ -85,10 +106,25 @@ std::ostream& operator<<(std::ostream &out, const JumpTarget& jt)
 	switch (jt.type)
 	{
 		case JumpTarget::eType::ENTRY_POINT:
-			t = "entry point";
+			t = "ENTRY_POINT";
 			break;
-		case JumpTarget::eType::CONTROL_FLOW_CALL:
-			t = "control flow call";
+		case JumpTarget::eType::CONTROL_FLOW_COND_BR_FALSE:
+			t = "CONTROL_FLOW_COND_BR_FALSE";
+			break;
+		case JumpTarget::eType::CONTROL_FLOW_COND_BR_TRUE:
+			t = "CONTROL_FLOW_COND_BR_TRUE";
+			break;
+		case JumpTarget::eType::CONTROL_FLOW_BR_TARGET:
+			t = "CONTROL_FLOW_BR_TARGET";
+			break;
+		case JumpTarget::eType::CONTROL_FLOW_CALL_AFTER:
+			t = "CONTROL_FLOW_CALL_AFTER";
+			break;
+		case JumpTarget::eType::CONTROL_FLOW_CALL_TARGET:
+			t = "CONTROL_FLOW_CALL_TARGET";
+			break;
+		case JumpTarget::eType::CONTROL_FLOW_RETURN_TARGET:
+			t = "CONTROL_FLOW_RETURN_TARGET";
 			break;
 		default:
 			assert(false && "unknown type");
@@ -121,11 +157,13 @@ void JumpTargets::push(const JumpTarget& jt)
 void JumpTargets::push(
 		retdec::utils::Address a,
 		JumpTarget::eType t,
-		cs_mode m)
+		cs_mode m,
+		retdec::utils::Address f,
+		const std::string& n)
 {
 	if (a.isDefined())
 	{
-		_data.insert(JumpTarget(a, t, m));
+		_data.insert(JumpTarget(a, t, m, f, n));
 	}
 }
 
@@ -133,23 +171,12 @@ void JumpTargets::push(
 		retdec::utils::Address a,
 		JumpTarget::eType t,
 		cs_mode m,
-		retdec::utils::Address f)
+		llvm::Instruction* f,
+		const std::string& n)
 {
 	if (a.isDefined())
 	{
-		_data.insert(JumpTarget(a, t, m, f));
-	}
-}
-
-void JumpTargets::push(
-		retdec::utils::Address a,
-		JumpTarget::eType t,
-		cs_mode m,
-		const std::string name)
-{
-	if (a.isDefined())
-	{
-		_data.insert(JumpTarget(a, t, m, retdec::utils::Address::getUndef, name));
+		_data.insert(JumpTarget(a, t, m, f, n));
 	}
 }
 

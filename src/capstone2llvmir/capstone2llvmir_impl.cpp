@@ -194,10 +194,10 @@ Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::translate(
 
 template <typename CInsn, typename CInsnOp>
 typename Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::TranslationResult
-Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::translate(
+Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::translateOne(
 		const uint8_t*& bytes,
 		std::size_t& size,
-		retdec::utils::Address a,
+		retdec::utils::Address& a,
 		llvm::IRBuilder<>& irb)
 {
 	TranslationResult res;
@@ -229,6 +229,8 @@ Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::translate(
 		res.count = 0;
 		res.branchCall = _branchGenerated;
 		res.inCondition = _inCondition;
+
+		a = address;
 	}
 	else
 	{

@@ -53,9 +53,42 @@ class Decoder : public llvm::ModulePass
 
 		void initJumpTargets();
 
-		void doDecoding();
+		void decode();
+		void decodeJumpTarget(const JumpTarget& jt);
 
+		bool getJumpTargetsFromInstruction(
+				AsmInstruction& ai,
+				capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResult& tr);
+		void analyzeInstruction(
+				AsmInstruction& ai,
+				capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResult& tr);
+		llvm::IRBuilder<> getIrBuilder(const JumpTarget& jt);
+		retdec::utils::Address getJumpTarget(llvm::Value* val);
+
+		llvm::Type* getDefaultFunctionReturnType();
 		bool isArmOrThumb() const;
+
+		llvm::Function* createFunction(
+				retdec::utils::Address a,
+				const std::string& name);
+		llvm::Function* getFunctionBeforeAddress(retdec::utils::Address a);
+		llvm::Function* getFunctionContainingAddress(retdec::utils::Address a);
+		retdec::utils::Address getFunctionAddress(llvm::Function* f);
+		retdec::utils::Address getFunctionEndAddress(llvm::Function* f);
+		llvm::Function* getFunction(retdec::utils::Address a);
+
+		llvm::BasicBlock* createBasicBlock(
+				retdec::utils::Address a,
+				const std::string& name,
+				llvm::Function* f,
+				llvm::BasicBlock* insertBefore = nullptr);
+		llvm::BasicBlock* createBasicBlock(
+				retdec::utils::Address a,
+				const std::string& name,
+				llvm::Instruction* insertAfter);
+		llvm::BasicBlock* getBasicBlockBeforeAddress(retdec::utils::Address a);
+		retdec::utils::Address getBasicBlockAddress(llvm::BasicBlock* b);
+		llvm::BasicBlock* getBasicBlock(retdec::utils::Address a);
 
 	private:
 		llvm::Module* _module = nullptr;
@@ -63,12 +96,19 @@ class Decoder : public llvm::ModulePass
 		FileImage* _image = nullptr;
 		DebugFormat* _debug = nullptr;
 
+		cs_mode _currentMode;
 		std::unique_ptr<capstone2llvmir::Capstone2LlvmIrTranslator> _c2l;
 
 		retdec::utils::AddressRangeContainer _allowedRanges;
 		retdec::utils::AddressRangeContainer _alternativeRanges;
 		retdec::utils::AddressRangeContainer _processedRanges;
 		JumpTargets _jumpTargets;
+
+		std::map<retdec::utils::Address, llvm::Function*> _addr2fnc;
+		std::map<llvm::Function*, retdec::utils::Address> _fnc2addr;
+
+		std::map<retdec::utils::Address, llvm::BasicBlock*> _addr2bb;
+		std::map<llvm::BasicBlock*, retdec::utils::Address> _bb2addr;
 
 		const std::string _asm2llvmGv = "_asm_program_counter";
 		const std::string _asm2llvmMd = "llvmToAsmGlobalVariableName";

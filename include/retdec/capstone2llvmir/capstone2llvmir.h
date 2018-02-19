@@ -349,15 +349,16 @@ class Capstone2LlvmIrTranslator
 		 * @param size  Size of the @p bytes buffer.
 		 *              This will be updated to reflect @p bytes update.
 		 * @param a     Memory address where @p bytes are located.
+		 *              This will be updated to point to the next instruction.
 		 * @param irb   LLVM IR builder used to create LLVM IR translation.
 		 *              Translated LLVM IR instructions are created at its
 		 *              current position.
 		 * @return See @c TranslationResult structure.
 		 */
-		virtual TranslationResult translate(
+		virtual TranslationResult translateOne(
 				const uint8_t*& bytes,
 				std::size_t& size,
-				retdec::utils::Address a,
+				retdec::utils::Address& a,
 				llvm::IRBuilder<>& irb) = 0;
 //
 //==============================================================================
