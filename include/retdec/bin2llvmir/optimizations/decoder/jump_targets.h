@@ -59,7 +59,6 @@ class JumpTarget
 
 		bool hasName() const;
 		std::string getName() const;
-		void setName(const std::string& n) const;
 
 		bool isKnownMode() const;
 		bool isUnknownMode() const;
@@ -76,7 +75,7 @@ class JumpTarget
 		cs_mode mode = CS_MODE_BIG_ENDIAN;
 
 	private:
-		mutable std::string name;
+		std::string name;
 };
 
 class JumpTargets

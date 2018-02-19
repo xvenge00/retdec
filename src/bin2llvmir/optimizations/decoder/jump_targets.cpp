@@ -30,9 +30,10 @@ JumpTarget::JumpTarget(
 		address(a),
 		fromAddress(f),
 		type(t),
-		mode(m)
+		mode(m),
+		name(n)
 {
-	setName(n);
+
 }
 
 JumpTarget::JumpTarget(
@@ -45,9 +46,10 @@ JumpTarget::JumpTarget(
 		address(a),
 		fromInst(f),
 		type(t),
-		mode(m)
+		mode(m),
+		name(n)
 {
-	setName(n);
+
 }
 
 bool JumpTarget::operator<(const JumpTarget& o) const
@@ -83,11 +85,6 @@ bool JumpTarget::hasName() const
 std::string JumpTarget::getName() const
 {
 	return name;
-}
-
-void JumpTarget::setName(const std::string& n) const
-{
-	name = n;
 }
 
 bool JumpTarget::isKnownMode() const
