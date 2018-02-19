@@ -28,7 +28,7 @@ JumpTarget::JumpTarget(
 		const std::string& n)
 		:
 		address(a),
-		from(f),
+		fromAddress(f),
 		type(t),
 		mode(m)
 {

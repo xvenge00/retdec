@@ -70,7 +70,7 @@ class JumpTarget
 		retdec::utils::Address address;
 		/// If jump target is code pointer, this is an address where
 		/// it was found;
-		retdec::utils::Address from;
+		retdec::utils::Address fromAddress;
 		llvm::Instruction* fromInst = nullptr;
 		eType type = eType::UNKNOWN;
 		cs_mode mode = CS_MODE_BIG_ENDIAN;
