@@ -495,7 +495,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 
 llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 {
-	if (_addr2fnc.empty())
+	if (_addr2fnc.empty() && jt.type == JumpTarget::eType::ENTRY_POINT)
 	{
 		auto* f = createFunction(jt.address, jt.getName());
 		return llvm::IRBuilder<>(&f->front().front());

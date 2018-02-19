@@ -72,10 +72,10 @@ class JumpTarget
 		retdec::utils::Address fromAddress;
 		llvm::Instruction* fromInst = nullptr;
 		eType type = eType::UNKNOWN;
-		cs_mode mode = CS_MODE_BIG_ENDIAN;
 
 	private:
-		std::string name;
+		cs_mode _mode = CS_MODE_BIG_ENDIAN;
+		std::string _name;
 };
 
 class JumpTargets

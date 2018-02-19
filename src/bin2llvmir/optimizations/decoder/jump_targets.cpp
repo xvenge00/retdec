@@ -30,8 +30,8 @@ JumpTarget::JumpTarget(
 		address(a),
 		fromAddress(f),
 		type(t),
-		mode(m),
-		name(n)
+		_mode(m),
+		_name(n)
 {
 
 }
@@ -46,8 +46,8 @@ JumpTarget::JumpTarget(
 		address(a),
 		fromInst(f),
 		type(t),
-		mode(m),
-		name(n)
+		_mode(m),
+		_name(n)
 {
 
 }
@@ -79,12 +79,12 @@ bool JumpTarget::doDryRun() const
 
 bool JumpTarget::hasName() const
 {
-	return !name.empty();
+	return !_name.empty();
 }
 
 std::string JumpTarget::getName() const
 {
-	return name;
+	return _name;
 }
 
 bool JumpTarget::isKnownMode() const
@@ -94,7 +94,7 @@ bool JumpTarget::isKnownMode() const
 
 bool JumpTarget::isUnknownMode() const
 {
-	return mode == CS_MODE_BIG_ENDIAN;
+	return _mode == CS_MODE_BIG_ENDIAN;
 }
 
 std::ostream& operator<<(std::ostream &out, const JumpTarget& jt)
