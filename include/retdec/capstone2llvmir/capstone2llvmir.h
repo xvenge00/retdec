@@ -7,6 +7,7 @@
 #ifndef RETDEC_CAPSTONE2LLVMIR_RETDEC_CAPSTONE2LLVMIR_H
 #define RETDEC_CAPSTONE2LLVMIR_RETDEC_CAPSTONE2LLVMIR_H
 
+#include <list>
 #include <cassert>
 #include <memory>
 
@@ -301,12 +302,16 @@ class Capstone2LlvmIrTranslator
 		{
 			bool failed() const { return size == 0; }
 
-			/// First translated special LLVM IR instruction used for
-			/// LLVM IR <-> Capstone instruction mapping.
-			llvm::StoreInst* first = nullptr;
-			/// Last translated special LLVM IR instruction used for
-			/// LLVM IR <-> Capstone instruction mapping.
-			llvm::StoreInst* last = nullptr;
+			/// List of translated instruction pairs:
+			/// first = LLVM IR instruction used for LLVM IR <-> Capstone
+			/// instruction mapping.
+			/// second = capstone instruction.
+			/// All created LLVM IR instructions are added to the working LLVM
+			/// module and should be automatically destroyed when module is
+			/// destroyed.
+			/// All capstone instructions are dynamically allocated by this
+			/// method, and must be freed by caller to avoid memory leaks.
+			std::list<std::pair<llvm::StoreInst*, cs_insn*>> insns;
 			/// Byte size of the translated binary chunk.
 			std::size_t size = 0;
 			/// Number of translated assembly instructions.
@@ -315,11 +320,10 @@ class Capstone2LlvmIrTranslator
 			/// branch instruction (any type, i.e. call, return, branch, cond
 			/// branch), or @c nullptr if there was no such instruction.
 			llvm::CallInst* branchCall = nullptr;
-			/// @c True if the generated branch is in conditional code,
-			/// e.g. uncond branch in if-then.
+			/// @c True if @c branchCall is in conditional code,
+			/// e.g. unconditional branch in if-then.
 			bool inCondition = false;
 		};
-
 		/**
 		 * Translate the given bytes.
 		 * @param bytes Bytes to translate.
@@ -342,6 +346,32 @@ class Capstone2LlvmIrTranslator
 				llvm::IRBuilder<>& irb,
 				std::size_t count = 0,
 				bool stopOnBranch = false) = 0;
+
+		struct TranslationResultOne
+		{
+			bool failed() const { return size == 0; }
+
+			/// Translated special LLVM IR instruction used for
+			/// LLVM IR <-> Capstone instruction mapping.
+			/// All created LLVM IR instructions are added to the working LLVM
+			/// module and should be automatically destroyed when module is
+			/// destroyed.
+			llvm::StoreInst* llvmInsn = nullptr;
+			/// Translated capstone instruction.
+			/// Capstone instruction is dynamically allocated by this
+			/// method, and must be freed by caller to avoid memory leaks.
+			cs_insn* capstoneInsn = nullptr;
+			/// Byte size of the translated binary chunk.
+			std::size_t size = 0;
+			/// If @c stopOnBranch was set, this is set to the terminating
+			/// branch instruction (any type, i.e. call, return, branch, cond
+			/// branch), or @c nullptr if there was no such instruction.
+			llvm::CallInst* branchCall = nullptr;
+			/// @c True if @c branchCall is in conditional code,
+			/// e.g. unconditional branch in if-then.
+			bool inCondition = false;
+		};
+
 		/**
 		 * Translate one assembly instruction from the given bytes.
 		 * @param bytes Bytes to translate.
@@ -355,7 +385,7 @@ class Capstone2LlvmIrTranslator
 		 *              current position.
 		 * @return See @c TranslationResult structure.
 		 */
-		virtual TranslationResult translateOne(
+		virtual TranslationResultOne translateOne(
 				const uint8_t*& bytes,
 				std::size_t& size,
 				retdec::utils::Address& a,

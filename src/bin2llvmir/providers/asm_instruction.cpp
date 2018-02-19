@@ -264,16 +264,8 @@ bool AsmInstruction::isInvalid() const
 
 cs_insn* AsmInstruction::getCapstoneInsn() const
 {
-	cs_insn* i = nullptr;
-
-	if (auto* m = _llvmToAsmInstr->getMetadata("asm"))
-	{
-		auto* ms = cast<ConstantAsMetadata>(m->getOperand(0));
-		auto* ci = cast<ConstantInt>(ms->getValue());
-		i = reinterpret_cast<cs_insn*>(ci->getZExtValue());
-	}
-
-	return i;
+	assert(false && "not implemented");
+	return nullptr;
 }
 
 bool AsmInstruction::isThumb() const

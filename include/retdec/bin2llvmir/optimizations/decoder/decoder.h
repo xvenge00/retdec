@@ -58,10 +58,10 @@ class Decoder : public llvm::ModulePass
 
 		bool getJumpTargetsFromInstruction(
 				AsmInstruction& ai,
-				capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResult& tr);
+				capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr);
 		void analyzeInstruction(
 				AsmInstruction& ai,
-				capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResult& tr);
+				capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr);
 		llvm::IRBuilder<> getIrBuilder(const JumpTarget& jt);
 		retdec::utils::Address getJumpTarget(llvm::Value* val);
 

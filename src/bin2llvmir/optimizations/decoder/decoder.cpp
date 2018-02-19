@@ -474,8 +474,8 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 	{
 		LOG << "\t\t\t translating = " << addr << std::endl;
 		auto res = _c2l->translateOne(bytes.first, bytes.second, addr, irb);
-		AsmInstruction ai(res.first);
-		if (res.failed() || res.first == nullptr || ai.isInvalid())
+		AsmInstruction ai(res.llvmInsn);
+		if (res.failed() || res.llvmInsn == nullptr || ai.isInvalid())
 		{
 			LOG << "\t\ttranslation failed" << std::endl;
 			// TODO: we need to somehow close the BB.
@@ -621,7 +621,7 @@ llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
  */
 bool Decoder::getJumpTargetsFromInstruction(
 		AsmInstruction& ai,
-		capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResult& tr)
+		capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr)
 {
 	analyzeInstruction(ai, tr);
 
@@ -730,7 +730,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 
 void Decoder::analyzeInstruction(
 		AsmInstruction& ai,
-		capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResult& tr)
+		capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr)
 {
 	// TODO:
 	// - extract jump targets from ordinary instructions.

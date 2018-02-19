@@ -150,11 +150,8 @@ Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::translate(
 	while (disasmRes)
 	{
 		auto* a2l = generateSpecialAsm2LlvmInstr(irb, insn);
-		if (res.first == nullptr)
-		{
-			res.first = a2l;
-		}
-		res.last = a2l;
+
+		res.insns.push_back(std::make_pair(a2l, insn));
 		res.size = (insn->address + insn->size) - a;
 
 		translateInstruction(insn, irb);
@@ -184,23 +181,20 @@ Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::translate(
 		}
 	}
 
-	// TODO: nothing translated, or translation ended far before end
-	// -> throw || or signal this to user (decoder).
-
 	cs_free(insn, 1);
 
 	return res;
 }
 
 template <typename CInsn, typename CInsnOp>
-typename Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::TranslationResult
+typename Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::TranslationResultOne
 Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::translateOne(
 		const uint8_t*& bytes,
 		std::size_t& size,
 		retdec::utils::Address& a,
 		llvm::IRBuilder<>& irb)
 {
-	TranslationResult res;
+	TranslationResultOne res;
 
 	// We want to keep all Capstone instructions -> alloc a new one each time.
 	cs_insn* insn = cs_malloc(_handle);
@@ -223,10 +217,9 @@ Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::translateOne(
 		auto* a2l = generateSpecialAsm2LlvmInstr(irb, insn);
 		translateInstruction(insn, irb);
 
-		res.first = a2l;
-		res.last = a2l;
+		res.llvmInsn = a2l;
+		res.capstoneInsn = insn;
 		res.size = insn->size;
-		res.count = 0;
 		res.branchCall = _branchGenerated;
 		res.inCondition = _inCondition;
 
@@ -623,11 +616,6 @@ llvm::StoreInst* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::generateSpecial
 	auto* gv = getAsm2LlvmMapGlobalVariable();
 	auto* ci = llvm::ConstantInt::get(gv->getValueType(), a, false);
 	auto* s = irb.CreateStore(ci, gv, true);
-
-	auto* cip = llvm::ConstantInt::get(irb.getInt64Ty(), reinterpret_cast<uintptr_t>(i));
-	auto* mdc = llvm::ConstantAsMetadata::get(cip);
-	auto* mdn = llvm::MDNode::get(_module->getContext(), {mdc});
-	s->setMetadata("asm", mdn);
 	return s;
 }
 
