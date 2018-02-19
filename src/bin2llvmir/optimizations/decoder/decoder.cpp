@@ -884,8 +884,10 @@ llvm::BasicBlock* Decoder::createBasicBlock(
 		const std::string& name,
 		llvm::Instruction* insertAfter)
 {
+	std::string n = name.empty() ? "bb_" + a.toHexString() : name;
+
 	auto* next = insertAfter->getNextNode();
-	auto* b = insertAfter->getParent()->splitBasicBlock(next, name);
+	auto* b = insertAfter->getParent()->splitBasicBlock(next, n);
 
 	_addr2bb[a] = b;
 	_bb2addr[b] = a;
