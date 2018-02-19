@@ -122,11 +122,7 @@ class Decoder : public llvm::ModulePass
 				retdec::utils::Address a,
 				const std::string& name,
 				llvm::Function* f,
-				llvm::BasicBlock* insertBefore = nullptr);
-		llvm::BasicBlock* createBasicBlock(
-				retdec::utils::Address a,
-				const std::string& name,
-				llvm::Instruction* insertAfter);
+				llvm::BasicBlock* insertAfter = nullptr);
 		llvm::BasicBlock* getBasicBlockBeforeAddress(retdec::utils::Address a);
 		retdec::utils::Address getBasicBlockAddress(llvm::BasicBlock* b);
 		llvm::BasicBlock* getBasicBlock(retdec::utils::Address a);

@@ -437,10 +437,125 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 	Address start = jt.address;
 	Address addr = start;
 
+	if (addr.isUndefined())
+	{
+		LOG << "\t\tunknown target address -> skipped" << std::endl;
+		return;
+	}
+
 	auto* range = _allowedRanges.getRange(addr);
 	if (range == nullptr)
 	{
-		LOG << "\t\tfound no range -> skipped" << std::endl;
+//		LOG << "\t\tfound no range -> skipped" << std::endl;
+//		return;
+
+		if (jt.type == JumpTarget::eType::CONTROL_FLOW_CALL_AFTER)
+		{
+			assert(false);
+		}
+		else if (jt.type == JumpTarget::eType::CONTROL_FLOW_COND_BR_FALSE)
+		{
+			auto* fromInst = jt.fromInst;
+			auto* fromFnc = fromInst->getFunction();
+			auto* targetBb = getBasicBlock(jt.address);
+
+			if (targetBb == nullptr)
+			{
+				assert(false);
+			}
+			else if (targetBb->getParent() == fromFnc)
+			{
+				_pseudoWorklist.setTargetBbFalse(
+						llvm::cast<llvm::CallInst>(jt.fromInst),
+						targetBb);
+				return;
+			}
+			else
+			{
+				assert(false);
+			}
+		}
+		else if (jt.type == JumpTarget::eType::CONTROL_FLOW_COND_BR_TRUE)
+		{
+			auto* fromInst = jt.fromInst;
+			auto* fromFnc = fromInst->getFunction();
+			auto* targetBb = getBasicBlock(jt.address);
+
+			if (targetBb == nullptr)
+			{
+				auto ai = AsmInstruction(_module, jt.address);
+				if (ai.isValid() && ai.getFunction() == fromFnc)
+				{
+					auto* newBb = ai.makeStart();
+					_pseudoWorklist.setTargetBbTrue(
+							llvm::cast<llvm::CallInst>(jt.fromInst),
+							newBb);
+					return;
+				}
+
+				assert(false);
+			}
+			else if (targetBb->getParent() == fromFnc)
+			{
+				_pseudoWorklist.setTargetBbTrue(
+						llvm::cast<llvm::CallInst>(jt.fromInst),
+						targetBb);
+				return;
+			}
+			else
+			{
+				assert(false);
+			}
+		}
+		else if (jt.type == JumpTarget::eType::CONTROL_FLOW_BR_TARGET)
+		{
+			auto* fromInst = jt.fromInst;
+			auto* fromFnc = fromInst->getFunction();
+			auto* targetBb = getBasicBlock(jt.address);
+
+			if (targetBb == nullptr)
+			{
+				auto ai = AsmInstruction(_module, jt.address);
+				if (ai.isValid() && ai.getFunction() == fromFnc)
+				{
+					auto* newBb = ai.makeStart();
+					_pseudoWorklist.setTargetBbTrue(
+							llvm::cast<llvm::CallInst>(jt.fromInst),
+							newBb);
+					return;
+				}
+
+				assert(false);
+			}
+			else if (targetBb->getParent() == fromFnc)
+			{
+				_pseudoWorklist.setTargetBbTrue(
+						llvm::cast<llvm::CallInst>(jt.fromInst),
+						targetBb);
+				return;
+			}
+			else
+			{
+				assert(false);
+			}
+		}
+		else if (jt.type == JumpTarget::eType::CONTROL_FLOW_CALL_TARGET)
+		{
+			if (auto* f = getFunction(jt.address))
+			{
+				_pseudoWorklist.setTargetFunction(
+						llvm::cast<llvm::CallInst>(jt.fromInst),
+						f);
+				return;
+			}
+
+//			std::cout << AsmInstruction(jt.fromInst) << std::endl;
+//			std::cout << AsmInstruction(_module, jt.address) << std::endl;
+
+//			assert(false);
+			// TODO: split function
+		}
+
 		return;
 	}
 	else
@@ -508,7 +623,11 @@ llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 	}
 	else if (jt.type == JumpTarget::eType::CONTROL_FLOW_COND_BR_FALSE)
 	{
-		auto* bb = createBasicBlock(jt.address, jt.getName(), jt.fromInst);
+		auto* bb = createBasicBlock(
+				jt.address,
+				jt.getName(),
+				jt.fromInst->getFunction(),
+				jt.fromInst->getParent());
 		_pseudoWorklist.setTargetBbFalse(
 				llvm::cast<llvm::CallInst>(jt.fromInst),
 				bb);
@@ -533,12 +652,11 @@ llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 				assert(false);
 			}
 
-			auto* nextBb = targetBb->getNextNode();
 			auto* newBb = createBasicBlock(
 					jt.address,
 					jt.getName(),
 					targetFnc,
-					nextBb);
+					targetBb);
 
 			_pseudoWorklist.setTargetBbTrue(
 					llvm::cast<llvm::CallInst>(jt.fromInst),
@@ -576,12 +694,11 @@ llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 				assert(false);
 			}
 
-			auto* nextBb = targetBb->getNextNode();
 			auto* newBb = createBasicBlock(
 					jt.address,
 					jt.getName(),
 					targetFnc,
-					nextBb);
+					targetBb);
 
 			_pseudoWorklist.setTargetBbTrue(
 					llvm::cast<llvm::CallInst>(jt.fromInst),
@@ -887,33 +1004,20 @@ llvm::BasicBlock* Decoder::createBasicBlock(
 		retdec::utils::Address a,
 		const std::string& name,
 		llvm::Function* f,
-		llvm::BasicBlock* insertBefore)
+		llvm::BasicBlock* insertAfter)
 {
 	std::string n = name.empty() ? "bb_" + a.toHexString() : name;
+
+	auto* next = insertAfter ? insertAfter->getNextNode() : nullptr;
 
 	auto* b = llvm::BasicBlock::Create(
 			_module->getContext(),
 			n,
 			f,
-			insertBefore);
+			next);
 
 	llvm::IRBuilder<> irb(b);
 	irb.CreateRet(llvm::UndefValue::get(f->getReturnType()));
-
-	_addr2bb[a] = b;
-	_bb2addr[b] = a;
-
-	return b;
-}
-llvm::BasicBlock* Decoder::createBasicBlock(
-		retdec::utils::Address a,
-		const std::string& name,
-		llvm::Instruction* insertAfter)
-{
-	std::string n = name.empty() ? "bb_" + a.toHexString() : name;
-
-	auto* next = insertAfter->getNextNode();
-	auto* b = insertAfter->getParent()->splitBasicBlock(next, n);
 
 	_addr2bb[a] = b;
 	_bb2addr[b] = a;
@@ -1023,16 +1127,18 @@ void PseudoCallWorklist::setTargetBbTrue(llvm::CallInst* c, llvm::BasicBlock* b)
 
 	assert(pc.type == eType::BR || pc.type == eType::COND_BR);
 
+	pc.targetBbTrue = b;
+
 	if (pc.type == eType::BR)
 	{
-		llvm::BranchInst::Create(b, pc.pseudoCall);
+		llvm::BranchInst::Create(pc.targetBbTrue, pc.pseudoCall);
 		pc.pseudoCall->eraseFromParent();
 		_worklist.erase(pc.pseudoCall);
 	}
 	else if (pc.type == eType::COND_BR && pc.targetBbFalse)
 	{
 		llvm::BranchInst::Create(
-				b,
+				pc.targetBbTrue,
 				pc.targetBbFalse,
 				pc.pseudoCall->getOperand(0),
 				pc.pseudoCall);
@@ -1053,11 +1159,13 @@ void PseudoCallWorklist::setTargetBbFalse(llvm::CallInst* c, llvm::BasicBlock* b
 
 	assert(pc.type == eType::COND_BR);
 
+	pc.targetBbFalse = b;
+
 	if (pc.targetBbTrue)
 	{
 		llvm::BranchInst::Create(
 				pc.targetBbTrue,
-				b,
+				pc.targetBbFalse,
 				pc.pseudoCall->getOperand(0),
 				pc.pseudoCall);
 		pc.pseudoCall->eraseFromParent();

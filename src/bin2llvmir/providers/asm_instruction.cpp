@@ -300,8 +300,9 @@ bool AsmInstruction::isConditional(Config* conf) const
 
 std::string AsmInstruction::getDsm() const
 {
-	auto* i = getCapstoneInsn();
-	return std::string(i->mnemonic) + " " + std::string(i->op_str);
+//	auto* i = getCapstoneInsn();
+//	return std::string(i->mnemonic) + " " + std::string(i->op_str);
+	return "";
 }
 
 std::size_t AsmInstruction::getByteSize() const
@@ -738,8 +739,10 @@ std::string AsmInstruction::dump() const
 	std::stringstream out;
 	if (isValid())
 	{
+//		out << "[ASM: " << getDsm() << " @ " << getAddress()
+//				<< " -- " << getEndAddress() << "]" << std::endl;
 		out << "[ASM: " << getDsm() << " @ " << getAddress()
-				<< " -- " << getEndAddress() << "]" << std::endl;
+				<< " -- " << "]" << std::endl;
 
 		out << llvmObjToString(_llvmToAsmInstr) << std::endl;
 		const BasicBlock* bb = _llvmToAsmInstr->getParent();
