@@ -27,6 +27,8 @@ set(CTYPES_SOURCES
 	visit_all_visitor.cpp
 	visitor.cpp
 	void_type.cpp
+	template.cpp
+	template_param.cpp
 )
 
 add_library(retdec-ctypes STATIC ${CTYPES_SOURCES})

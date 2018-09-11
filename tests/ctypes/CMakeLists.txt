@@ -24,6 +24,8 @@ set(RETDEC_TESTS_CTYPES_SOURCES
 	unknown_type_tests.cpp
 	visit_all_visitor_tests.cpp
 	void_type_tests.cpp
+	template_tests.cpp
+	template_param_tests.cpp
 )
 
 add_executable(retdec-tests-ctypes ${RETDEC_TESTS_CTYPES_SOURCES})
