@@ -26,6 +26,7 @@ set(RETDEC_TESTS_CTYPES_SOURCES
 	void_type_tests.cpp
 	template_tests.cpp
 	template_param_tests.cpp
+	namespace_tests.cpp
 )
 
 add_executable(retdec-tests-ctypes ${RETDEC_TESTS_CTYPES_SOURCES})
