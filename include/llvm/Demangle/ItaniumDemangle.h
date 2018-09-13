@@ -5127,6 +5127,12 @@ template<typename Alloc> Node *Db<Alloc>::parse() {
 }
 
 }  // namespace itanium_demangle
+
+// RetDec {
+itanium_demangle::Node *itaniumDemangleToAST(const char *mangled_name, char *buf, size_t *n,
+											 int *status);
+// } RetDec
+
 }  // namespace llvm
 
 #endif // LLVM_DEMANGLE_ITANIUMDEMANGLE_H

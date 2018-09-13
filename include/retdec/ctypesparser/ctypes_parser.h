@@ -51,15 +51,6 @@ class CTypesParser
 	public:
 		virtual ~CTypesParser() = default;
 
-		virtual std::unique_ptr<retdec::ctypes::Module> parse(
-			std::istream &stream,
-			const TypeWidths &typeWidths = {},
-			const retdec::ctypes::CallConvention &callConvention = retdec::ctypes::CallConvention()) = 0;
-		virtual void parseInto(std::istream &stream,
-			std::unique_ptr<retdec::ctypes::Module> &module,
-			const TypeWidths &typeWidths = {},
-			const retdec::ctypes::CallConvention &callConvention = retdec::ctypes::CallConvention()) = 0;
-
 	protected:
 		CTypesParser();
 		CTypesParser(unsigned defaultBitWidth);

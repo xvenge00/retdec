@@ -365,6 +365,32 @@ char *llvm::itaniumDemangle(const char *MangledName, char *Buf,
   return InternalStatus == demangle_success ? Buf : nullptr;
 }
 
+// RetDec {
+Node *llvm::itaniumDemangleToAST(const char *MangledName, char *Buf,
+                            size_t *N, int *Status) {
+  if (MangledName == nullptr || (Buf != nullptr && N == nullptr)) {
+    if (Status)
+      *Status = demangle_invalid_args;
+    return nullptr;
+  }
+
+  int InternalStatus = demangle_success;
+  Demangler Parser(MangledName, MangledName + std::strlen(MangledName));
+
+  Node *AST = Parser.parse();
+
+  if (AST == nullptr)
+    InternalStatus = demangle_invalid_mangled_name;
+  else {
+    assert(Parser.ForwardTemplateRefs.empty());
+  }
+
+  if (Status)
+    *Status = InternalStatus;
+  return InternalStatus == demangle_success ? AST : nullptr;
+}
+// } RetDec
+
 bool llvm::itaniumFindTypesInMangledName(const char *MangledName, void *Ctx,
                                          void (*Callback)(void *,
                                                           const char *)) {
