@@ -1,7 +1,7 @@
-#ifndef RETDEC_AST_CTYPES_PARSER_H
-#define RETDEC_AST_CTYPES_PARSER_H
+#ifndef RETDEC_CTYPESPARSER_AST_CTYPES_PARSER_H
+#define RETDEC_CTYPESPARSER_AST_CTYPES_PARSER_H
 
-#include <retdec/ctypes/integral_type.h>
+#include "retdec/ctypes/integral_type.h"
 #include "retdec/ctypesparser/ctypes_parser.h"
 #include "retdec/ctypes/module.h"
 #include "llvm/Demangle/ItaniumDemangle.h"
@@ -15,14 +15,17 @@ class ASTCTypesParser : public CTypesParser
 		using Node = ::llvm::itanium_demangle::Node;
 
 	public:
-		std::unique_ptr<ctypes::Module> parse(
+		ASTCTypesParser();
+		ASTCTypesParser(unsigned defaultBitWidth);
+
+		std::shared_ptr<ctypes::Module> parse(
 			const Node *ast,
 			const ctypes::CallConvention &callConvention = ctypes::CallConvention());
 
 		void addTypesToMap(const TypeWidths &widthMap);
 
 	private:
-		std::shared_ptr<ctypes::Function> parseFunction(const llvm::itanium_demangle::FunctionEncoding &funcN,
+		std::shared_ptr<ctypes::Function> parseFunction(const llvm::itanium_demangle::FunctionEncoding *funcN,
 														const std::shared_ptr<ctypes::Context> &context,
 														const ctypes::CallConvention &callConvention = ctypes::CallConvention());
 
@@ -41,4 +44,4 @@ class ASTCTypesParser : public CTypesParser
 }
 }
 
-#endif //RETDEC_AST_CTYPES_PARSER_H
+#endif //RETDEC_CTYPESPARSER_AST_CTYPES_PARSER_H

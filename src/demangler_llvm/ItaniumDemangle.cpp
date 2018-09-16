@@ -13,6 +13,7 @@
 
 #include "llvm/Demangle/Demangle.h"
 #include "llvm/Demangle/ItaniumDemangle.h"
+#include "llvm/Demangle/allocator.h"
 
 #include <cassert>
 #include <cctype>
@@ -23,9 +24,16 @@
 #include <numeric>
 #include <utility>
 #include <vector>
+#include <memory>
 
 using namespace llvm;
 using namespace llvm::itanium_demangle;
+
+//RetDec{
+void *DefaultAllocator::allocateNodeArray(size_t sz) {
+  return Alloc.allocate(sizeof(Node *) * sz);
+}
+// }RetDec
 
 constexpr const char *itanium_demangle::FloatData<float>::spec;
 constexpr const char *itanium_demangle::FloatData<double>::spec;
@@ -237,95 +245,27 @@ void itanium_demangle::Node::dump() const {
 }
 #endif
 
+// RetDec moved allocator to allocator.h
 namespace {
-class BumpPointerAllocator {
-  struct BlockMeta {
-    BlockMeta* Next;
-    size_t Current;
-  };
-
-  static constexpr size_t AllocSize = 4096;
-  static constexpr size_t UsableAllocSize = AllocSize - sizeof(BlockMeta);
-
-  alignas(long double) char InitialBuffer[AllocSize];
-  BlockMeta* BlockList = nullptr;
-
-  void grow() {
-    char* NewMeta = static_cast<char *>(std::malloc(AllocSize));
-    if (NewMeta == nullptr)
-      std::terminate();
-    BlockList = new (NewMeta) BlockMeta{BlockList, 0};
-  }
-
-  void* allocateMassive(size_t NBytes) {
-    NBytes += sizeof(BlockMeta);
-    BlockMeta* NewMeta = reinterpret_cast<BlockMeta*>(std::malloc(NBytes));
-    if (NewMeta == nullptr)
-      std::terminate();
-    BlockList->Next = new (NewMeta) BlockMeta{BlockList->Next, 0};
-    return static_cast<void*>(NewMeta + 1);
-  }
-
-public:
-  BumpPointerAllocator()
-      : BlockList(new (InitialBuffer) BlockMeta{nullptr, 0}) {}
-
-  void* allocate(size_t N) {
-    N = (N + 15u) & ~15u;
-    if (N + BlockList->Current >= UsableAllocSize) {
-      if (N > UsableAllocSize)
-        return allocateMassive(N);
-      grow();
-    }
-    BlockList->Current += N;
-    return static_cast<void*>(reinterpret_cast<char*>(BlockList + 1) +
-                              BlockList->Current - N);
-  }
-
-  void reset() {
-    while (BlockList) {
-      BlockMeta* Tmp = BlockList;
-      BlockList = BlockList->Next;
-      if (reinterpret_cast<char*>(Tmp) != InitialBuffer)
-        std::free(Tmp);
-    }
-    BlockList = new (InitialBuffer) BlockMeta{nullptr, 0};
-  }
-
-  ~BumpPointerAllocator() { reset(); }
-};
-
-class DefaultAllocator {
-  BumpPointerAllocator Alloc;
-
-public:
-  void reset() { Alloc.reset(); }
-
-  template<typename T, typename ...Args> T *makeNode(Args &&...args) {
-    return new (Alloc.allocate(sizeof(T)))
-        T(std::forward<Args>(args)...);
-  }
-
-  void *allocateNodeArray(size_t sz) {
-    return Alloc.allocate(sizeof(Node *) * sz);
-  }
-};
 
 bool initializeOutputStream(char *Buf, size_t *N, OutputStream &S,
-                            size_t InitSize) {
-  size_t BufferSize;
-  if (Buf == nullptr) {
-    Buf = static_cast<char *>(std::malloc(InitSize));
-    if (Buf == nullptr)
-      return true;
-    BufferSize = InitSize;
-  } else
-    BufferSize = *N;
+							size_t InitSize)
+{
+	size_t BufferSize;
+	if (Buf == nullptr) {
+		Buf = static_cast<char *>(std::malloc(InitSize));
+		if (Buf == nullptr)
+			return true;
+		BufferSize = InitSize;
+	} else
+		BufferSize = *N;
 
-  S.reset(Buf, BufferSize);
-  return false;
+	S.reset(Buf, BufferSize);
+	return false;
 }
-}  // unnamed namespace
+
+}
+
 
 //===----------------------------------------------------------------------===//
 // Code beyond this point should not be synchronized with libc++abi.
@@ -366,23 +306,23 @@ char *llvm::itaniumDemangle(const char *MangledName, char *Buf,
 }
 
 // RetDec {
-Node *llvm::itaniumDemangleToAST(const char *MangledName, char *Buf,
-                            size_t *N, int *Status) {
-  if (MangledName == nullptr || (Buf != nullptr && N == nullptr)) {
+//TODO return demangler as shared_ptr
+Node *llvm::itaniumDemangleToAST(const char *MangledName, int *Status, Demangler **demangler) {
+  if (MangledName == nullptr) {
     if (Status)
       *Status = demangle_invalid_args;
     return nullptr;
   }
 
   int InternalStatus = demangle_success;
-  Demangler Parser(MangledName, MangledName + std::strlen(MangledName));
+  *demangler = new Demangler(MangledName, MangledName + std::strlen(MangledName));
 
-  Node *AST = Parser.parse();
+  auto AST = (*demangler)->parse();
 
   if (AST == nullptr)
     InternalStatus = demangle_invalid_mangled_name;
   else {
-    assert(Parser.ForwardTemplateRefs.empty());
+    assert((*demangler)->ForwardTemplateRefs.empty());
   }
 
   if (Status)

@@ -23,10 +23,19 @@ const std::string stringViewToString(StringView &sView)
 
 	return (length > 0) ? std::string{begin, length} : std::string{};
 }
+
+const std::string genName(const std::string &baseName = std::string("")) {	//TODO better gen
+	static unsigned long long generator;
+	return baseName + std::to_string(generator);
+}
+
 } // anonymous namespace
 
-using Kind = ::llvm::itanium_demangle::Node::Kind;
-using FunctionEncoding = ::llvm::itanium_demangle::FunctionEncoding;
+ASTCTypesParser::ASTCTypesParser() : CTypesParser() {}
+ASTCTypesParser::ASTCTypesParser(unsigned defaultBitWidth) : CTypesParser(defaultBitWidth) {}
+
+//using Kind = ::llvm::itanium_demangle::Node::Kind;
+//using FunctionEncoding = ::llvm::itanium_demangle::FunctionEncoding;
 
 void ASTCTypesParser::addTypesToMap(const TypeWidths &widthmap)
 {
@@ -38,7 +47,7 @@ unsigned ASTCTypesParser::getIntegralTypeBitWidth(const std::string &type) const
 {
 	std::string toSearch;
 
-	static const std::regex reChar("\\bchar\\b");
+	static const std::regex reChar("\\bchar67\\b");
 	static const std::regex reShort("\\bshort\\b");
 	static const std::regex reLongLong("\\blong long\\b");
 	static const std::regex reLong("\\blong\\b");
@@ -78,7 +87,7 @@ ctypes::IntegralType::Signess ASTCTypesParser::getSigness(const std::string &typ
 	static const std::regex reUnsigned("^u.{6,8}|\\bunsigned\\b");
 
 	bool search = std::regex_search(type, reUnsigned);
-	return search ? ctypes::IntegralType::Signess::Signed : ctypes::IntegralType::Signess::Unsigned;
+	return search ? ctypes::IntegralType::Signess::Unsigned : ctypes::IntegralType::Signess::Signed;
 }
 
 ctypes::Function::Parameters ASTCTypesParser::parseParameters(const llvm::itanium_demangle::NodeArray &paramsArray,
@@ -88,17 +97,18 @@ ctypes::Function::Parameters ASTCTypesParser::parseParameters(const llvm::itaniu
 	auto params = paramsArray.begin();
 	ctypes::Function::Parameters retParams{};
 
-	for (size_t i = 0; i != size; ++i) {
-		if (params[i]->getKind() == Kind::KNameType) {
+	for (size_t i = 0; i < size; ++i) {
+		if (params[i]->getKind() == llvm::itanium_demangle::Node::Kind::KNameType) {
 			auto nameV = params[i]->getBaseName();
 			const std::string name = stringViewToString(nameV);
 
-			//if integral
-			auto bitWidth = getIntegralTypeBitWidth(name);
-			auto signess = getSigness(name);
-			auto type = ctypes::IntegralType::create(context, name, bitWidth, signess);    //TODO genarate name
+//			TODO if integral
+			unsigned bitWidth = getIntegralTypeBitWidth("int");
+			ctypes::IntegralType::Signess signess = ctypes::IntegralType::Signess::Signed;
+			auto generatedName = genName(name);
+			auto type = ctypes::IntegralType::create(context, generatedName, bitWidth, signess);
 
-			retParams.emplace_back(ctypes::Parameter(name, type));
+			retParams.emplace_back(ctypes::Parameter(generatedName, type));
 		}
 	}
 
@@ -111,32 +121,32 @@ std::shared_ptr<ctypes::Type> ASTCTypesParser::parseRetType(const retdec::ctypes
 	return ctypes::UnknownType::create();    //itanium drops return type most of the time
 }
 
-std::shared_ptr<retdec::ctypes::Function> ASTCTypesParser::parseFunction(const FunctionEncoding &funcN,
+std::shared_ptr<retdec::ctypes::Function> ASTCTypesParser::parseFunction(const llvm::itanium_demangle::FunctionEncoding *funcN,
 																		 const std::shared_ptr<ctypes::Context> &context,
 																		 const ctypes::CallConvention &callConvention)
 {
-	StringView nameV{funcN.getBaseName()};
+	StringView nameV{funcN->getName()->getBaseName()};
 	std::string name{stringViewToString(nameV)};
 
-	auto retNode = funcN.getReturnType();
+	auto retNode = funcN->getReturnType();
 	auto retT = parseRetType(*retNode, context);
 
-	auto paramsNode = funcN.getParams();
+	auto paramsNode = funcN->getParams();
 	auto paramsT = parseParameters(paramsNode, context);
 
 	return ctypes::Function::create(context, name, retT, paramsT);
 }
 
-std::unique_ptr<retdec::ctypes::Module> ASTCTypesParser::parse(const retdec::ctypesparser::ASTCTypesParser::Node *ast,
+std::shared_ptr<retdec::ctypes::Module> ASTCTypesParser::parse(const llvm::itanium_demangle::Node *ast,
 															   const retdec::ctypes::CallConvention &callConvention)
 {
 	auto context(std::make_shared<ctypes::Context>());
-	auto module(std::make_unique<ctypes::Module>(context));
+	auto module(std::make_shared<ctypes::Module>(context));
 
 	switch (ast->getKind()) {
-	case Kind::KFunctionEncoding : {
-		auto funcN = dynamic_cast<const FunctionEncoding *>(ast);
-		auto funcT = parseFunction(*funcN, context);
+	case llvm::itanium_demangle::Node::Kind::KFunctionEncoding : {
+		auto funcN = dynamic_cast<const llvm::itanium_demangle::FunctionEncoding *>(ast);
+		auto funcT = parseFunction(funcN, context);
 		module->addFunction(funcT);
 
 		break;

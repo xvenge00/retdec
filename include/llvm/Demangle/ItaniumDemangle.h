@@ -17,6 +17,7 @@
 #include "llvm/Demangle/Compiler.h"
 #include "llvm/Demangle/StringView.h"
 #include "llvm/Demangle/Utility.h"
+#include "llvm/Demangle/allocator.h"
 
 #include <cassert>
 #include <cctype>
@@ -5129,8 +5130,8 @@ template<typename Alloc> Node *Db<Alloc>::parse() {
 }  // namespace itanium_demangle
 
 // RetDec {
-itanium_demangle::Node *itaniumDemangleToAST(const char *mangled_name, char *buf, size_t *n,
-											 int *status);
+using DefaultAllocator = llvm::itanium_demangle::DefaultAllocator;
+itanium_demangle::Node *itaniumDemangleToAST(const char *mangled_name, int *status, itanium_demangle::Db<DefaultAllocator> **demangler);
 // } RetDec
 
 }  // namespace llvm
