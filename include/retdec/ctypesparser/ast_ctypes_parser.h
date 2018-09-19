@@ -18,7 +18,7 @@ class ASTCTypesParser : public CTypesParser
 		ASTCTypesParser();
 		ASTCTypesParser(unsigned defaultBitWidth);
 
-		std::shared_ptr<ctypes::Module> parse(
+		std::shared_ptr<ctypes::Context> parse(
 			const Node *ast,
 			const ctypes::CallConvention &callConvention = ctypes::CallConvention());
 
@@ -31,13 +31,20 @@ class ASTCTypesParser : public CTypesParser
 
 		ctypes::Function::Parameters parseParameters(const llvm::itanium_demangle::NodeArray &params,
 													 const std::shared_ptr<ctypes::Context> &context);
-		std::shared_ptr<ctypes::Type> parseRetType(const Node &retTypeNode,
+		std::shared_ptr<ctypes::Type> parseRetType(const Node *retTypeNode,
 												   const std::shared_ptr<ctypes::Context> &context);
+		std::shared_ptr<ctypes::Type>parseType(const std::string &typeName);
 
-		unsigned getIntegralTypeBitWidth(const std::string &type) const;
-		ctypes::IntegralType::Signess getSigness(const std::string &type);
+		enum class Types{
+			TIntegral,
+			TFloat,
+			TBool,
+			TUnknown
+		};
 
 		unsigned getBitWidthOrDefault(const std::string &typeName) const;
+		ctypes::IntegralType::Signess getSigness(const std::string &type);
+		std::pair<Types, unsigned> getTypeAndWidth(const std::string &typeName);
 
 };
 
