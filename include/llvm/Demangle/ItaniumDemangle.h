@@ -541,6 +541,12 @@ public:
 
   template<typename Fn> void match(Fn F) const { F(Pointee, RK); }
 
+  //RetDec{
+  const Node *getPointee() {
+      return Pointee;
+  }
+  //}RetDec
+
   bool hasRHSComponentSlow(OutputStream &S) const override {
     return Pointee->hasRHSComponent(S);
   }

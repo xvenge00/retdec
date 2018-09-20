@@ -1,8 +1,9 @@
 
 #include <regex>
 #include <glob.h>
-#include <retdec/ctypes/floating_point_type.h>
 
+#include <retdec/ctypes/floating_point_type.h>
+#include <retdec/ctypes/reference_type.h>
 #include "retdec/ctypesparser/ast_ctypes_parser.h"
 #include "retdec/ctypes/function.h"
 #include "llvm/Demangle/StringView.h"
@@ -165,6 +166,20 @@ ctypes::Function::Parameters ASTCTypesParser::parseParameters(const llvm::itaniu
 			retParams.emplace_back(ctypes::Parameter(pointerType->getName(), pointerType));
 
 			break;
+		}
+		case Kind::KReferenceType: {
+			auto referenceNode = dynamic_cast<llvm::itanium_demangle::ReferenceType *>(params[i]);
+
+			auto referencedNode = referenceNode->getPointee();
+
+			auto referencedNameView = referencedNode->getBaseName();
+			auto referencedNameString = stringViewToString(referencedNameView);
+
+			auto referencedType = parseType(referencedNameString);
+
+			auto referenceType = ctypes::ReferenceType::create(context, referencedType);
+
+			retParams.emplace_back(ctypes::Parameter(referenceType->getName(), referenceType));
 		}
 		default: break;
 		}

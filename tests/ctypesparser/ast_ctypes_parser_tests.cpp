@@ -98,9 +98,22 @@ TEST_F(ASTCTypesParserTests, floatingPointTest)
 	EXPECT_TRUE(function->getParameter(1).getType()->isFloatingPoint());
 }
 
+TEST_F(ASTCTypesParserTests, referenceTest)
+{
+	const char *mangled = "_Z3fooRi";	//foo(int&)
+
+	auto context = mangledToCtypes(mangled);
+
+	EXPECT_TRUE(context->hasFunctionWithName("foo"));
+
+	auto function = context->getFunctionWithName("foo");
+	EXPECT_EQ(function->getParameterCount(), 1);
+	EXPECT_TRUE(function->getParameter(1).getType()->isReference());
+}
+
 //TEST_F(ASTCTypesParserTests, QualifiersTest)
 //{
-//	const char *mangled = "_Z3fooIiEVKdPid";
+//	const char *mangled = "_Z3fooIiEVKdPid";	//is template
 //}
 
 } // namespace tests
