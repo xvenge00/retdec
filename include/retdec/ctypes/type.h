@@ -37,6 +37,7 @@ class Type: public Visitable, public std::enable_shared_from_this<Type>
 		virtual bool isUnion() const;
 		virtual bool isUnknown() const;
 		virtual bool isVoid() const;
+		virtual bool isReference() const;
 
 	protected:
 		Type() = default;

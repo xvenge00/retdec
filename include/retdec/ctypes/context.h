@@ -22,6 +22,7 @@ namespace ctypes {
 class Annotation;
 class Function;
 class PointerType;
+class ReferenceType;
 class Type;
 
 /**
@@ -61,6 +62,14 @@ class Context
 		void addPointerType(const std::shared_ptr<PointerType> &pointerType);
 		/// @}
 
+		/// @name Access to reference types.
+		/// @{
+		bool hasReferenceType(const std::shared_ptr<Type> &referencedType) const;
+		std::shared_ptr<ReferenceType> getReferenceType(
+			const std::shared_ptr<Type> &referencedType) const;
+		void addReferenceType(const std::shared_ptr<ReferenceType> &referenceType);
+		/// @}
+
 		/// @name Access to array types.
 		/// @{
 		bool hasArrayType(const std::shared_ptr<Type> &elementType,
@@ -97,6 +106,11 @@ class Context
 			std::shared_ptr<PointerType>>;
 		/// Stored pointer types, key is type that they point to.
 		PointerTypes pointerTypes;
+
+		using ReferenceTypes = std::unordered_map<std::shared_ptr<Type>,
+			std::shared_ptr<ReferenceType>>;
+		/// Stored pointer types, ked is type that they reference.
+		ReferenceTypes referenceTypes;
 
 		using ArrayTypes = std::map<
 			std::pair<std::shared_ptr<Type>, ArrayType::Dimensions>,
