@@ -17,7 +17,7 @@ set(RETDEC_TESTS_CTYPES_SOURCES
 	member_tests.cpp
 	module_tests.cpp
 	parameter_tests.cpp
-	pointer_type.cpp
+	pointer_type_tests.cpp
 	struct_type_tests.cpp
 	typedefed_type_tests.cpp
 	union_type_tests.cpp

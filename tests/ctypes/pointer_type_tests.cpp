@@ -1,5 +1,5 @@
 /**
-* @file tests/ctypes/pointer_type.cpp
+* @file tests/ctypes/pointer_type_tests.cpp
 * @brief Tests for the @c pointer_type module.
 * @copyright (c) 2017 Avast Software, licensed under the MIT license
 */
