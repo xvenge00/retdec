@@ -43,7 +43,7 @@ TEST_F(ReferenceTypeTests,
 }
 
 TEST_F(ReferenceTypeTests,
-	   TwoPointerTypesWithDifferentReferencedTypesDiffer)
+	   TwoReferenceTypesWithDifferentReferencedTypesDiffer)
 {
 	auto obj1 = ReferenceType::create(context, intType);
 	auto obj2 = ReferenceType::create(context, charType);
@@ -54,19 +54,19 @@ TEST_F(ReferenceTypeTests,
 TEST_F(ReferenceTypeTests,
 	   GetReferencedTypeReturnsCorrectType)
 {
-	auto ptr = ReferenceType::create(context, intType);
+	auto ref = ReferenceType::create(context, intType);
 
-	EXPECT_EQ(intType, ptr->getReferencedType());
+	EXPECT_EQ(intType, ref->getReferencedType());
 }
 
 TEST_F(ReferenceTypeTests,
-	   IsReferenceReturnsTrueOnPointerType)
+	   IsReferenceReturnsTrueOnReferenceType)
 {
 	EXPECT_TRUE(ReferenceType::create(context, intType)->isReference());
 }
 
 TEST_F(ReferenceTypeTests,
-	   IsReferenceReturnsFalseOnNonPointerType)
+	   IsReferenceReturnsFalseOnNonReferenceType)
 {
 	EXPECT_FALSE(intType->isReference());
 }
@@ -74,17 +74,33 @@ TEST_F(ReferenceTypeTests,
 TEST_F(ReferenceTypeTests,
 	   CreateSetsBitWidthCorrectly)
 {
-	auto ptr = ReferenceType::create(context, intType, 33);
+	auto ref = ReferenceType::create(context, intType, ReferenceType::Constantness::Nonconstant, 33);
 
-	EXPECT_EQ(33, ptr->getBitWidth());
+	EXPECT_EQ(33, ref->getBitWidth());
 }
 
 TEST_F(ReferenceTypeTests,
 	   DefaultBitWidthIsZero)
 {
-	auto ptr = ReferenceType::create(context, intType);
+	auto ref = ReferenceType::create(context, intType);
 
-	EXPECT_EQ(0, ptr->getBitWidth());
+	EXPECT_EQ(0, ref->getBitWidth());
+}
+
+TEST_F(ReferenceTypeTests,
+	   CreatedConstantReference)
+{
+	auto ref = ReferenceType::create(context, intType, ReferenceType::Constantness::Constant);
+
+	EXPECT_EQ(ReferenceType::Constantness::Constant, ref->getConstantness());
+}
+
+TEST_F(ReferenceTypeTests,
+	   ConstantnessDeafultValueIsNonconstant)
+{
+	auto ref = ReferenceType::create(context, intType);
+
+	EXPECT_EQ(ReferenceType::Constantness::Nonconstant, ref->getConstantness());
 }
 
 } // namespace tests

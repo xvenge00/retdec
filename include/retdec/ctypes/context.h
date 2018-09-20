@@ -109,7 +109,7 @@ class Context
 
 		using ReferenceTypes = std::unordered_map<std::shared_ptr<Type>,
 			std::shared_ptr<ReferenceType>>;
-		/// Stored pointer types, ked is type that they reference.
+		/// Stored reference types, key is type that they reference.
 		ReferenceTypes referenceTypes;
 
 		using ArrayTypes = std::map<
