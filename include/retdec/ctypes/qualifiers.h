@@ -18,8 +18,8 @@ class ConstantQualifier
 	public:
 		enum class Constantness
 		{
-				Constant,
-				Nonconstant
+			Constant,
+			Nonconstant
 		};
 
 	public:

@@ -19,7 +19,7 @@ namespace ctypes {
 * See @c create() for more information.
 */
 IntegralType::IntegralType(const std::string &name, unsigned bitWidth, Signess signess):
-	Type(name, bitWidth), signess(signess) {}
+	Type(name, bitWidth), ConstantQualifier(), signess(signess) {}
 
 /**
 * @brief Creates integral type.

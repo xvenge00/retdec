@@ -1,12 +1,18 @@
+/**
+* @file src/ctypesparser/ast_ctypes_parser.cpp
+* @brief Parser for C-types from AST created by itanium demangler.
+* @copyright (c) 2018 Avast Software, licensed under the MIT license
+*/
 
 #include <regex>
 #include <glob.h>
 
+#include "llvm/Demangle/StringView.h"
+
+#include "retdec/ctypesparser/ast_ctypes_parser.h"
 #include <retdec/ctypes/floating_point_type.h>
 #include <retdec/ctypes/reference_type.h>
-#include "retdec/ctypesparser/ast_ctypes_parser.h"
 #include "retdec/ctypes/function.h"
-#include "llvm/Demangle/StringView.h"
 #include "retdec/ctypes/type.h"
 #include "retdec/ctypes/integral_type.h"
 #include "retdec/ctypes/void_type.h"
@@ -228,6 +234,9 @@ std::shared_ptr<retdec::ctypes::Function> ASTCTypesParser::parseFunction(const l
 	return function;
 }
 
+/**
+ * @brief Parses CTypes from AST created by itanium demangler.
+ */
 std::shared_ptr<ctypes::Context> ASTCTypesParser::parse(const llvm::itanium_demangle::Node *ast,
 														const retdec::ctypes::CallConvention &callConvention)
 {
@@ -246,6 +255,6 @@ std::shared_ptr<ctypes::Context> ASTCTypesParser::parse(const llvm::itanium_dema
 	return context;
 }
 
-}
-}
+} // namespace ctypesparser
+} // namespace retdec
 

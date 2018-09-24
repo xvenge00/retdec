@@ -32,5 +32,5 @@ bool ConstantQualifier::isConstant() const
 	return constantness == Constantness::Constant;
 }
 
-}
-}
+} // namespace ctypes
+} // namespace retdec

@@ -45,6 +45,6 @@ TEST_F(TemplateParamTests,
 	EXPECT_EQ(par2.getType(), intType);
 }
 
-}
-}
-}
+} // namespace tests
+} // namespace ctypes
+} // namespace retdec

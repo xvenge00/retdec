@@ -24,7 +24,8 @@ class Context;
 class IntegralType: public Type, public ConstantQualifier
 {
 	public:
-		enum class Signess {
+		enum class Signess
+		{
 			Signed,
 			Unsigned
 		};
@@ -46,7 +47,8 @@ class IntegralType: public Type, public ConstantQualifier
 
 	private:
 		// Instances are created by static method create().
-		IntegralType(const std::string &name, unsigned bitWidth,
+		IntegralType(
+			const std::string &name, unsigned bitWidth,
 			Signess signess = Signess::Signed);
 
 	private:

@@ -1,3 +1,9 @@
+/**
+* @file include/retdec/ctypes/template_param.h
+* @brief Implementation of Template parameteres.
+* @copyright (c) 2018 Avast Software, licensed under the MIT license
+*/
+
 #ifndef RETDEC_TEMPLATES_PARAM_H
 #define RETDEC_TEMPLATES_PARAM_H
 
@@ -6,17 +12,21 @@
 namespace retdec {
 namespace ctypes {
 
+/**
+ * @brief Representation of Teplate parameteres.
+ */
 class TemplateParam
 {
 	public:
-		enum class Kind {
+		enum class Kind
+		{
 			KValue,
 			KBuiltIn
 		};
 
 	public:
-		explicit TemplateParam(std::string value);
-		explicit TemplateParam(std::shared_ptr<Type> type);
+		explicit TemplateParam(const std::string &value);
+		explicit TemplateParam(const std::shared_ptr<Type> &type);
 
 		Kind getKind();
 		std::shared_ptr<Type> getType();
@@ -30,7 +40,7 @@ class TemplateParam
 
 };
 
-}
-}
+} // namespace ctypes
+} // namespace retdec
 
 #endif //RETDEC_TEMPLATES_PARAM_H

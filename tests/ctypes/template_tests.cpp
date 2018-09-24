@@ -61,21 +61,6 @@ BasicUsage)
 	EXPECT_EQ(templ.getParams()[0].getValue(), "foo");
 }
 
-TEST_F(TemplateTests,
-NoFunction)
-{
-	std::vector <TemplateParam> params{};
-
-	TemplateParam par1{"foo"};
-	params.emplace_back(par1);
-
-	Template templ{params, nullptr};
-
-	EXPECT_EQ(templ.getFunc(),nullptr);
-
-	EXPECT_EQ(templ.getParams().size(), 1);
-}
-
-}
-}
-}
+} // namespace tests
+} // namespace ctypes
+} // namespace retdec

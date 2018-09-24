@@ -21,7 +21,8 @@ Function::Function(
 	const std::string &name,
 	const std::shared_ptr<FunctionType> &functionType,
 	const Parameters &parameters):
-	name(name), functionType(functionType), parameters(parameters) {}
+	ConstantQualifier(), name(name),
+	functionType(functionType),	parameters(parameters) {}
 
 const std::string &Function::getName() const
 {

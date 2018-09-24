@@ -1,3 +1,9 @@
+/**
+* @file include/retdec/ctypes/reference_type.h
+* @brief A representation of reference types.
+* @copyright (c) 2018 Avast Software, licensed under the MIT license
+*/
+
 #ifndef RETDEC_CTYPES_REFERENCE_TYPE_H
 #define RETDEC_CTYPES_REFERENCE_TYPE_H
 
@@ -9,14 +15,11 @@
 namespace retdec {
 namespace ctypes {
 
-class ReferenceType : public Type
+/**
+ * @brief A representation of reference types.
+ */
+class ReferenceType: public Type
 {
-	public:
-		enum class Constantness
-		{
-				Constant,
-				Nonconstant
-		};
 	public:
 		static std::shared_ptr<ReferenceType> create(
 			const std::shared_ptr<Context> &context,
@@ -38,10 +41,9 @@ class ReferenceType : public Type
 
 	private:
 		std::shared_ptr<Type> referencedType;
-		Constantness constantness;
 };
 
-}
-}
+} // namespace ctypes
+} // namespace retdec
 
 #endif //RETDEC_CTYPES_REFERENCE_TYPE_H
