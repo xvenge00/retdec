@@ -6,13 +6,14 @@
 #include "retdec/ctypes/context.h"
 #include "retdec/ctypes/type.h"
 
-namespace retdec{
-namespace ctypes{
+namespace retdec {
+namespace ctypes {
 
-class ReferenceType: public Type
+class ReferenceType : public Type
 {
 	public:
-		enum class Constantness {
+		enum class Constantness
+		{
 				Constant,
 				Nonconstant
 		};
@@ -20,12 +21,10 @@ class ReferenceType: public Type
 		static std::shared_ptr<ReferenceType> create(
 			const std::shared_ptr<Context> &context,
 			const std::shared_ptr<Type> &referencedType,
-			Constantness constantness = Constantness::Nonconstant,
 			unsigned bitWidth = 0
-			);
+		);
 
 		std::shared_ptr<Type> getReferencedType() const;
-		Constantness getConstantness();
 
 		bool isReference() const override;
 
@@ -35,8 +34,7 @@ class ReferenceType: public Type
 		/// @}
 
 	private:
-		explicit ReferenceType(const std::shared_ptr<Type> &referencedType,
-			Constantness constantness = Constantness::Nonconstant, unsigned bitWidth=0);
+		explicit ReferenceType(const std::shared_ptr<Type> &referencedType, unsigned bitWidth = 0);
 
 	private:
 		std::shared_ptr<Type> referencedType;

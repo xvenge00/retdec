@@ -15,14 +15,12 @@ namespace ctypes {
 
 ReferenceType::ReferenceType(
 	const std::shared_ptr<Type> &referencedType,
-	Constantness constantness,
 	unsigned int bitWidth) :
-	Type("", bitWidth),referencedType(referencedType), constantness(constantness) {}
+	Type("", bitWidth),referencedType(referencedType) {}
 
 std::shared_ptr<ReferenceType> ReferenceType::create(
 	const std::shared_ptr<Context> &context,
 	const std::shared_ptr<Type> &referencedType,
-	Constantness constantness,
 	unsigned int bitWidth)
 {
 	assert(context && "violated precondition - context cannot be null");
@@ -33,7 +31,7 @@ std::shared_ptr<ReferenceType> ReferenceType::create(
 		return type;
 	}
 
-	std::shared_ptr<ReferenceType> newType(new ReferenceType(referencedType, constantness, bitWidth));
+	std::shared_ptr<ReferenceType> newType(new ReferenceType(referencedType, bitWidth));
 	context->addReferenceType(newType);
 	return newType;
 }
@@ -41,11 +39,6 @@ std::shared_ptr<ReferenceType> ReferenceType::create(
 std::shared_ptr<Type> ReferenceType::getReferencedType() const
 {
 	return referencedType;
-}
-
-ReferenceType::Constantness ReferenceType::getConstantness()
-{
-	return constantness;
 }
 
 bool ReferenceType::isReference() const

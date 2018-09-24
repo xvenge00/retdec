@@ -74,7 +74,7 @@ TEST_F(ReferenceTypeTests,
 TEST_F(ReferenceTypeTests,
 	   CreateSetsBitWidthCorrectly)
 {
-	auto ref = ReferenceType::create(context, intType, ReferenceType::Constantness::Nonconstant, 33);
+	auto ref = ReferenceType::create(context, intType, 33);
 
 	EXPECT_EQ(33, ref->getBitWidth());
 }
@@ -85,22 +85,6 @@ TEST_F(ReferenceTypeTests,
 	auto ref = ReferenceType::create(context, intType);
 
 	EXPECT_EQ(0, ref->getBitWidth());
-}
-
-TEST_F(ReferenceTypeTests,
-	   CreatedConstantReference)
-{
-	auto ref = ReferenceType::create(context, intType, ReferenceType::Constantness::Constant);
-
-	EXPECT_EQ(ReferenceType::Constantness::Constant, ref->getConstantness());
-}
-
-TEST_F(ReferenceTypeTests,
-	   ConstantnessDeafultValueIsNonconstant)
-{
-	auto ref = ReferenceType::create(context, intType);
-
-	EXPECT_EQ(ReferenceType::Constantness::Nonconstant, ref->getConstantness());
 }
 
 } // namespace tests
