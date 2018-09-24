@@ -81,6 +81,21 @@ IsIntegralReturnsFalseOnNonIntegralType)
 	EXPECT_FALSE(VoidType::create()->isIntegral());
 }
 
+TEST_F(IntegralTypeTests,
+IsNonconstantByDefault)
+{
+	auto intType = IntegralType::create(context, "int", 32);
+	EXPECT_FALSE(intType->isConstant());
+}
+
+TEST_F(IntegralTypeTests,
+ConstantInt)
+{
+	auto intType = IntegralType::create(context, "int", 32);
+	intType->setAsConstant();
+	EXPECT_TRUE(intType->isConstant());
+}
+
 } // namespace tests
 } // namespace ctypes
 } // namespace retdec

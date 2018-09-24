@@ -190,6 +190,25 @@ IsVarArgReturnsFalseForNotVarArgFunction)
 	EXPECT_FALSE(newF->isVarArg());
 }
 
+TEST_F(FunctionTests,
+IsNonconstantByDefault)
+{
+	auto func = Function::create(
+		context, "newF", intType, emptyParams,
+		CallConvention("cdecl"), Function::VarArgness::IsNotVarArg);
+	EXPECT_FALSE(func->isConstant());
+}
+
+TEST_F(FunctionTests,
+ConstantFunction)
+{
+	auto func = Function::create(
+		context, "newF", intType, emptyParams,
+		CallConvention("cdecl"), Function::VarArgness::IsNotVarArg);
+	func->setAsConstant();
+	EXPECT_TRUE(func->isConstant());
+}
+
 } // namespace tests
 } // namespace ctypes
 } // namespace retdec

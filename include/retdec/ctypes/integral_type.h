@@ -11,6 +11,7 @@
 #include <string>
 
 #include "retdec/ctypes/type.h"
+#include "retdec/ctypes/qualifiers.h"
 
 namespace retdec {
 namespace ctypes {
@@ -20,7 +21,7 @@ class Context;
 /**
 * @brief A representation of integral types.
 */
-class IntegralType: public Type
+class IntegralType: public Type, public ConstantQualifier
 {
 	public:
 		enum class Signess {

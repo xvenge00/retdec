@@ -59,6 +59,20 @@ IsFloatingPointReturnsFalseOnNonFloatingPointType)
 	EXPECT_FALSE(IntegralType::create(context, "int", 32)->isFloatingPoint());
 }
 
+TEST_F(FloatingPointTypeTests,
+IsNonconstantAsDefault)
+{
+	EXPECT_FALSE(FloatingPointType::create(context, "float", 32)->isConstant());
+}
+
+TEST_F(FloatingPointTypeTests,
+SetAsConstant)
+{
+	auto floatType = FloatingPointType::create(context, "float", 32);
+	floatType->setAsConstant();
+	EXPECT_TRUE(floatType->isConstant());
+}
+
 } // namespace tests
 } // namespace ctypes
 } // namespace retdec

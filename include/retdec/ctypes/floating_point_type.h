@@ -11,6 +11,7 @@
 #include <string>
 
 #include "retdec/ctypes/type.h"
+#include "retdec/ctypes/qualifiers.h"
 
 namespace retdec {
 namespace ctypes {
@@ -20,7 +21,7 @@ class Context;
 /**
 * @brief A representation of floating point types.
 */
-class FloatingPointType: public Type
+class FloatingPointType: public Type, public ConstantQualifier
 {
 	public:
 		static std::shared_ptr<FloatingPointType> create(

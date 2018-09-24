@@ -15,6 +15,7 @@
 #include "retdec/ctypes/function_declaration.h"
 #include "retdec/ctypes/function_type.h"
 #include "retdec/ctypes/header_file.h"
+#include "retdec/ctypes/qualifiers.h"
 
 namespace retdec {
 namespace ctypes {
@@ -26,7 +27,7 @@ class Type;
 /**
 * @brief A representation of a C function.
 */
-class Function
+class Function: public ConstantQualifier
 {
 	public:
 		using Parameters = std::vector<Parameter>;
