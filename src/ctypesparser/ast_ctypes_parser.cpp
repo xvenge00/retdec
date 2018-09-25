@@ -20,6 +20,7 @@
 #include "retdec/ctypes/context.h"
 #include "retdec/ctypes/parameter.h"
 #include "retdec/ctypes/pointer_type.h"
+#include "retdec/ctypes/qualifiers.h"
 #include "retdec/utils/container.h"
 
 namespace retdec {
@@ -42,10 +43,13 @@ const std::string genName(const std::string &baseName = std::string(""))
 
 } // anonymous namespace
 
-ASTCTypesParser::ASTCTypesParser() : CTypesParser() {}
-ASTCTypesParser::ASTCTypesParser(unsigned defaultBitWidth) : CTypesParser(defaultBitWidth) {}
-
 using Kind = ::llvm::itanium_demangle::Node::Kind;
+
+ASTCTypesParser::ASTCTypesParser() :
+	CTypesParser(), context(std::make_shared<ctypes::Context>()) {}
+
+ASTCTypesParser::ASTCTypesParser(unsigned defaultBitWidth) :
+	CTypesParser(defaultBitWidth), context(std::make_shared<ctypes::Context>()) {}
 
 void ASTCTypesParser::addTypesToMap(const TypeWidths &widthmap)
 {
@@ -66,7 +70,8 @@ ctypes::IntegralType::Signess ASTCTypesParser::getSigness(const std::string &typ
 	return search ? ctypes::IntegralType::Signess::Unsigned : ctypes::IntegralType::Signess::Signed;
 }
 
-std::pair<ASTCTypesParser::Types, unsigned> ASTCTypesParser::getTypeAndWidth(const std::string &typeName)
+std::pair<ASTCTypesParser::Types,
+		  unsigned> ASTCTypesParser::getTypeAndWidth(const std::string &typeName)
 {
 	//TODO uint16_t...
 	std::string toSearch;
@@ -102,13 +107,13 @@ std::pair<ASTCTypesParser::Types, unsigned> ASTCTypesParser::getTypeAndWidth(con
 	} else if (std::regex_search(typeName, reUnSigned)) {
 		toSearch = "int";
 		type = Types::TIntegral;
-	} else if (std::regex_search(typeName, reDouble)){
+	} else if (std::regex_search(typeName, reDouble)) {
 		toSearch = "double";
 		type = Types::TFloat;
-	} else if(std::regex_search(typeName, reFloat)) {
+	} else if (std::regex_search(typeName, reFloat)) {
 		toSearch = "float";
 		type = Types::TFloat;
-	} else if(std::regex_search(typeName, reBool)) {
+	} else if (std::regex_search(typeName, reBool)) {
 		toSearch = "bool";
 		type = Types::TBool;
 	} else {
@@ -119,7 +124,8 @@ std::pair<ASTCTypesParser::Types, unsigned> ASTCTypesParser::getTypeAndWidth(con
 	return {type, getBitWidthOrDefault(toSearch)};
 }
 
-std::shared_ptr<ctypes::Type> ASTCTypesParser::parseType(const std::string &typeName)
+std::shared_ptr<ctypes::Type> ASTCTypesParser::parseType(
+	const std::string &typeName)
 {
 	unsigned bitWidth;
 	ASTCTypesParser::Types types;
@@ -139,9 +145,122 @@ std::shared_ptr<ctypes::Type> ASTCTypesParser::parseType(const std::string &type
 	}
 }
 
-ctypes::Function::Parameters ASTCTypesParser::parseParameters(const llvm::itanium_demangle::NodeArray &paramsArray,
-															  const std::shared_ptr<ctypes::Context> &context)
+/**
+ * @brief Parses Names from AST to ctypes::Type.
+ * @param nameNode Node of Kind::KNameType
+ */
+std::shared_ptr<ctypes::Type> ASTCTypesParser::parseName(
+	const llvm::itanium_demangle::NameType *nameNode)
 {
+	assert(nameNode && "violated precondition - nameNode cannot be null");
+
+	auto nameV = nameNode->getBaseName();
+	return parseType(stringViewToString(nameV));
+	//TODO parse class names
+}
+
+/**
+ * @brief Parses Qualified Name from AST to ctypes::Type.
+ * @param qualNode Node of Kind::KQualType
+ */
+std::shared_ptr<ctypes::Type> ASTCTypesParser::parseQualifiedName(
+	const llvm::itanium_demangle::QualType *qualNode)
+{
+	assert(qualNode && "violated precondition - qualNode cannot be null");
+
+	auto quals = qualNode->getQuals();
+	auto childNode =
+		dynamic_cast<const llvm::itanium_demangle::NameType *>(qualNode->getChild());
+	auto referencedType = parseName(childNode);
+
+	parseQuals(quals, referencedType);
+
+	return referencedType;
+}
+
+/**
+ * Parses qualifiers and aplies them to type.
+ */
+void ASTCTypesParser::parseQuals(
+	llvm::itanium_demangle::Qualifiers quals,
+	std::shared_ptr<retdec::ctypes::Type> &type)
+{
+	assert(type && "violated precondition - type cannot be null");
+
+	using qualifiers = llvm::itanium_demangle::Qualifiers;
+
+	if (quals & qualifiers::QualConst) {
+		type->setAsConstant();
+	}
+}
+
+/**
+ * @brief Parses pointer from AST to ctypes::PointerType.
+ * @param pointerNode Node of KPointerType
+ */
+std::shared_ptr<ctypes::PointerType> ASTCTypesParser::parsePointer(
+	const llvm::itanium_demangle::PointerType *pointerNode)
+{
+	assert(pointerNode && "violated precondition - pointerNode cannot be null");
+
+	auto pointeeNode = pointerNode->getPointee();
+
+	switch (pointeeNode->getKind()) {
+	case Kind::KNameType: {
+		auto childNode = dynamic_cast<const llvm::itanium_demangle::NameType *>(pointeeNode);
+		auto pointeeType = parseName(childNode);
+		return ctypes::PointerType::create(context, pointeeType);
+	}
+	case Kind::KQualType: {
+		auto childNode = dynamic_cast<const llvm::itanium_demangle::QualType *>(pointeeNode);
+		auto pointeeType = parseQualifiedName(childNode);
+		return ctypes::PointerType::create(context, pointeeType);
+	}
+	default:return nullptr;
+	}
+
+//	auto pointeeNode = pointerNode->getPointee();
+//	auto pointeeNameView = pointeeNode->getBaseName();
+//	auto pointeeNameString = stringViewToString(pointeeNameView);
+//	auto pointeeType = parseType(pointeeNameString);
+//	return ctypes::PointerType::create(context, pointeeType);    //TODO pointer width
+}
+
+/**
+ * @brief Parses references from AST to ctypes::ReferenceType
+ * @param refNode Node of Kind::KReferencetype
+ */
+std::shared_ptr<ctypes::ReferenceType> ASTCTypesParser::parseRef(
+	const llvm::itanium_demangle::ReferenceType *refNode)
+{
+	assert(refNode && "violated precondition - refNode cannot be null");
+
+	auto referencedNode = refNode->getPointee();
+
+	switch (referencedNode->getKind()) {
+	case Kind::KNameType: {
+		auto childNode = dynamic_cast<const llvm::itanium_demangle::NameType *>(referencedNode);
+		auto referencedType = parseName(childNode);
+		return ctypes::ReferenceType::create(context, referencedType);
+	}
+	case Kind::KQualType: {
+		auto qualNode = dynamic_cast<const llvm::itanium_demangle::QualType *>(referencedNode);
+		auto referencedType = parseQualifiedName(qualNode);
+		return ctypes::ReferenceType::create(context, referencedType);
+	}
+	default: return nullptr;
+	}
+	//TODO ref width
+	//TODO referenceKind
+}
+
+/**
+ * @brief Parses function paramaters from AST to ctypes.
+ */
+ctypes::Function::Parameters ASTCTypesParser::parseParameters(
+	const llvm::itanium_demangle::NodeArray &paramsArray)
+{
+	//TODO parsed params test for nullptr
 	size_t size{paramsArray.size()};
 	auto params = paramsArray.begin();
 	ctypes::Function::Parameters retParams{};
@@ -149,43 +268,23 @@ ctypes::Function::Parameters ASTCTypesParser::parseParameters(const llvm::itaniu
 	for (size_t i = 0; i < size; ++i) {
 		switch (params[i]->getKind()) {
 		case Kind::KNameType: {
-			auto nameV = params[i]->getBaseName();
-			const std::string name = stringViewToString(nameV);
-
-			auto type = parseType(name);
+			auto nameNode = dynamic_cast<const llvm::itanium_demangle::NameType *>(params[i]);
+			auto type = parseName(nameNode);
 			retParams.emplace_back(ctypes::Parameter(type->getName(), type));
-
 			break;
 		}
 		case Kind::KPointerType: {
-			auto pointerNode = dynamic_cast<llvm::itanium_demangle::PointerType *>(params[i]);
-
-			auto pointeeNode = pointerNode->getPointee();
-
-			auto pointeeNameView = pointeeNode->getBaseName();
-			auto pointeeNameString = stringViewToString(pointeeNameView);
-
-			auto pointeeType = parseType(pointeeNameString);
-
-			auto pointerType = ctypes::PointerType::create(context, pointeeType);    //TODO pointer width
-
+			auto pointerNode = dynamic_cast<const llvm::itanium_demangle::PointerType *>(params[i]);
+			auto pointerType = parsePointer(pointerNode);
 			retParams.emplace_back(ctypes::Parameter(pointerType->getName(), pointerType));
-
 			break;
 		}
 		case Kind::KReferenceType: {
-			auto referenceNode = dynamic_cast<llvm::itanium_demangle::ReferenceType *>(params[i]);
-
-			auto referencedNode = referenceNode->getPointee();
-
-			auto referencedNameView = referencedNode->getBaseName();
-			auto referencedNameString = stringViewToString(referencedNameView);
-
-			auto referencedType = parseType(referencedNameString);
-
-			auto referenceType = ctypes::ReferenceType::create(context, referencedType);
-
+			auto referenceNode =
+				dynamic_cast<const llvm::itanium_demangle::ReferenceType *>(params[i]);
+			auto referenceType = parseRef(referenceNode);
 			retParams.emplace_back(ctypes::Parameter(referenceType->getName(), referenceType));
+			break;
 		}
 		default: break;
 		}
@@ -194,26 +293,39 @@ ctypes::Function::Parameters ASTCTypesParser::parseParameters(const llvm::itaniu
 	return retParams;
 }
 
-std::shared_ptr<ctypes::Type> ASTCTypesParser::parseRetType(const retdec::ctypesparser::ASTCTypesParser::Node *retTypeNode,
-															const std::shared_ptr<retdec::ctypes::Context> &context)
+/**
+ * @brief Parses return types of functions.
+ * @param retTypeNode Node can be null.
+ * @return Parsed Type
+ */
+std::shared_ptr<ctypes::Type> ASTCTypesParser::parseRetType(
+	const retdec::ctypesparser::ASTCTypesParser::Node *retTypeNode)
 {
 	if (retTypeNode == nullptr) {
 		return ctypes::UnknownType::create();
 	}
 
-	if (retTypeNode->getKind() == llvm::itanium_demangle::Node::Kind::KNameType) {
-		auto typeNameView = retTypeNode->getBaseName();
-		return parseType(stringViewToString(typeNameView));
+	switch (retTypeNode->getKind()) {
+	case Kind::KNameType: {
+		return parseName(dynamic_cast<const llvm::itanium_demangle::NameType *>(retTypeNode));
 	}
-
-	return ctypes::UnknownType::create();
-
+//	case Kind::KQualifiedName:{
+//		return parseQualifiedName(dynamic_cast<const llvm::itanium_demangle::QualType *>(retTypeNode));
+//	}
+	default: return ctypes::UnknownType::create();
+	}
 }
 
-std::shared_ptr<retdec::ctypes::Function> ASTCTypesParser::parseFunction(const llvm::itanium_demangle::FunctionEncoding *funcN,
-																		 const std::shared_ptr<ctypes::Context> &context,
-																		 const ctypes::CallConvention &callConvention)
+/**
+ * @brief Parses AST function into ctypes::Function
+ * @param funcN Node of Kind::KFunctionEncoding
+ */
+std::shared_ptr<retdec::ctypes::Function> ASTCTypesParser::parseFunction(
+	const llvm::itanium_demangle::FunctionEncoding *funcN,
+	const ctypes::CallConvention &callConvention)
 {
+	assert(funcN && "violated precondition - funcN cannot be nullptr");
+
 	auto nameNode = funcN->getName();
 
 //	bool isTemplate = nameNode->getKind() == Kind::KNameWithTemplateArgs;
@@ -221,14 +333,9 @@ std::shared_ptr<retdec::ctypes::Function> ASTCTypesParser::parseFunction(const l
 	StringView nameV{nameNode->getBaseName()};
 	std::string name{stringViewToString(nameV)};
 
-	auto retNode = funcN->getReturnType();
-	auto retT = parseRetType(retNode, context);
-
-	auto paramsNode = funcN->getParams();
-	auto paramsT = parseParameters(paramsNode, context);
-
+	auto retT = parseRetType(funcN->getReturnType());
+	auto paramsT = parseParameters(funcN->getParams());
 	auto function = ctypes::Function::create(context, name, retT, paramsT, callConvention);
-
 
 	//TODO rewrite context to accept template
 	return function;
@@ -237,16 +344,14 @@ std::shared_ptr<retdec::ctypes::Function> ASTCTypesParser::parseFunction(const l
 /**
  * @brief Parses CTypes from AST created by itanium demangler.
  */
-std::shared_ptr<ctypes::Context> ASTCTypesParser::parse(const llvm::itanium_demangle::Node *ast,
-														const retdec::ctypes::CallConvention &callConvention)
+std::shared_ptr<ctypes::Context> ASTCTypesParser::parse(
+	const llvm::itanium_demangle::Node *ast,
+	const retdec::ctypes::CallConvention &callConvention)
 {
-	auto context(std::make_shared<ctypes::Context>());
-
 	switch (ast->getKind()) {
 	case llvm::itanium_demangle::Node::Kind::KFunctionEncoding : {
 		auto funcN = dynamic_cast<const llvm::itanium_demangle::FunctionEncoding *>(ast);
-		auto funcT = parseFunction(funcN, context);
-
+		auto funcT = parseFunction(funcN, callConvention);
 		break;
 	}
 	default: break;

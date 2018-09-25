@@ -19,7 +19,7 @@ namespace ctypes {
 * See @c create() for more information.
 */
 FloatingPointType::FloatingPointType(const std::string &name, unsigned bitWidth):
-	Type(name, bitWidth), ConstantQualifier() {}
+	Type(name, bitWidth) {}
 
 /**
 * @brief Creates floating point type.

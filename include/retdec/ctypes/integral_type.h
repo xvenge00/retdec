@@ -21,7 +21,7 @@ class Context;
 /**
 * @brief A representation of integral types.
 */
-class IntegralType: public Type, public ConstantQualifier
+class IntegralType: public Type
 {
 	public:
 		enum class Signess

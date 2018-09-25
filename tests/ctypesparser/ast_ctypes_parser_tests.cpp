@@ -11,9 +11,12 @@
 
 #include "llvm/Demangle/ItaniumDemangle.h"
 #include "llvm/Demangle/Demangle.h"
+
 #include "retdec/ctypesparser/ast_ctypes_parser.h"
-#include "retdec/ctypes/function.h"
 #include "retdec/ctypes/context.h"
+#include "retdec/ctypes/function.h"
+#include "retdec/ctypes/reference_type.h"
+#include "retdec/ctypes/qualifiers.h"
 
 using namespace ::testing;
 
@@ -45,7 +48,7 @@ class ASTCTypesParserTests : public Test
 			setMap(parser);
 		}
 		~ASTCTypesParserTests() override {
-			free(demangler);	//TODO valgrind - missmached free
+			delete demangler;
 		}
 
 		std::shared_ptr<ctypes::Context> mangledToCtypes(const char *mangled){
@@ -85,6 +88,23 @@ TEST_F(ASTCTypesParserTests, pointerTest)
 	EXPECT_TRUE(function->getParameter(1).getType()->isPointer());
 }
 
+TEST_F(ASTCTypesParserTests, ConstantPointerAsParameter)
+{
+	const char *mangled = "_Z3fooPKi"; // foo(int const*)
+	auto context = mangledToCtypes(mangled);
+
+	EXPECT_TRUE(context -> hasFunctionWithName("foo"));
+	auto function = context->getFunctionWithName("foo");
+
+	EXPECT_EQ(function->getParameterCount(), 1);
+	auto ptr = function->getParameter(1).getType();
+	EXPECT_TRUE(ptr->isPointer());
+
+	auto pointee = std::dynamic_pointer_cast<ctypes::PointerType>(ptr)->getPointedType();
+	EXPECT_TRUE(pointee->isIntegral());
+	EXPECT_TRUE(pointee->isConstant());
+}
+
 TEST_F(ASTCTypesParserTests, floatingPointTest)
 {
 	const char *mangled = "_Z3food";	//foo(double);
@@ -111,9 +131,49 @@ TEST_F(ASTCTypesParserTests, referenceTest)
 	EXPECT_TRUE(function->getParameter(1).getType()->isReference());
 }
 
+TEST_F(ASTCTypesParserTests, ConstQualifierParameterTest) {
+	const char *mangled = "_Z3fooRKi"; // foo(int const&)
+
+	auto context = mangledToCtypes(mangled);
+
+	EXPECT_TRUE(context->hasFunctionWithName("foo"));
+
+	auto function = context->getFunctionWithName("foo");
+	EXPECT_EQ(function->getParameterCount(), 1);
+
+	auto ref = function->getParameter(1).getType();
+	EXPECT_TRUE(ref->isReference());
+
+	auto referenced = std::dynamic_pointer_cast<ctypes::ReferenceType>(ref)->getReferencedType();
+	EXPECT_TRUE(referenced->isIntegral());
+	EXPECT_TRUE(std::dynamic_pointer_cast<ctypes::IntegralType>(referenced)->isConstant());
+}
+
+TEST_F(ASTCTypesParserTests, ConstQualifierNotSetAsDefault)
+{
+	const char *mangled = "_Z3fooRi";	//foo(int&)
+	auto context = mangledToCtypes(mangled);
+
+	EXPECT_TRUE(context->hasFunctionWithName("foo"));
+
+	auto function = context->getFunctionWithName("foo");
+	auto ref = function->getParameter(1).getType();
+	auto referenced = std::dynamic_pointer_cast<ctypes::ReferenceType>(ref)->getReferencedType();
+	EXPECT_TRUE(referenced->isIntegral());
+	EXPECT_FALSE(std::dynamic_pointer_cast<ctypes::IntegralType>(referenced)->isConstant());
+}
+
+//TEST_F(ASTCTypesParserTests, ClassNameAsParameter)
+//{
+//	const char *mangled = "_Z3fooR3Bar";
+//
+//	auto context = mangledToCtypes(mangled);
+//}
+
 //TEST_F(ASTCTypesParserTests, QualifiersTest)
 //{
 //	const char *mangled = "_Z3fooIiEVKdPid";	//is template
+//	auto context = mangledToCtypes(mangled);
 //}
 
 } // namespace tests

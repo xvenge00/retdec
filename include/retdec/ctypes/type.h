@@ -11,6 +11,7 @@
 #include <string>
 
 #include "retdec/ctypes/visitable.h"
+#include "retdec/ctypes/qualifiers.h"
 
 namespace retdec {
 namespace ctypes {
@@ -18,7 +19,7 @@ namespace ctypes {
 /**
 * @brief A base class of all C types.
 */
-class Type: public Visitable, public std::enable_shared_from_this<Type>
+class Type: public Visitable, public ConstantQualifier, public std::enable_shared_from_this<Type>
 {
 	public:
 		virtual ~Type() = default;

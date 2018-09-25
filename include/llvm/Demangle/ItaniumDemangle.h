@@ -322,6 +322,11 @@ public:
 
   template<typename Fn> void match(Fn F) const { F(Child, Quals); }
 
+  // RetDec {
+  const Qualifiers getQuals() const { return Quals; }
+  const Node *getChild() const { return Child; }
+  // } RetDec
+
   bool hasRHSComponentSlow(OutputStream &S) const override {
     return Child->hasRHSComponent(S);
   }
@@ -471,7 +476,7 @@ public:
   template<typename Fn> void match(Fn F) const { F(Pointee); }
 
   // RetDec {
-  const Node * getPointee() { return Pointee; }
+  const Node * getPointee() const { return Pointee; }
   // }RetDec
 
   bool hasRHSComponentSlow(OutputStream &S) const override {
@@ -542,9 +547,8 @@ public:
   template<typename Fn> void match(Fn F) const { F(Pointee, RK); }
 
   //RetDec{
-  const Node *getPointee() {
-      return Pointee;
-  }
+  const Node *getPointee() const { return Pointee; }
+  ReferenceKind getRefKind() const { return RK; }
   //}RetDec
 
   bool hasRHSComponentSlow(OutputStream &S) const override {

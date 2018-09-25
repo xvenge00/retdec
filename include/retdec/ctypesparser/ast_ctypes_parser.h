@@ -11,6 +11,8 @@
 
 #include "retdec/ctypes/integral_type.h"
 #include "retdec/ctypes/module.h"
+#include "retdec/ctypes/pointer_type.h"
+#include "retdec/ctypes/reference_type.h"
 #include "retdec/ctypesparser/ctypes_parser.h"
 
 namespace retdec {
@@ -35,28 +37,42 @@ class ASTCTypesParser: public CTypesParser
 		void addTypesToMap(const TypeWidths &widthMap);
 
 	private:
+		std::shared_ptr<ctypes::Context> context;
+
 		enum class Types
 		{
-				TIntegral,
-				TFloat,
-				TBool,
-				TUnknown
+			TIntegral,
+			TFloat,
+			TBool,
+			TUnknown
 		};
 
 		/// @name Parsing methods.
 		/// @{
 		std::shared_ptr<ctypes::Function> parseFunction(
 			const llvm::itanium_demangle::FunctionEncoding *funcN,
-			const std::shared_ptr<ctypes::Context> &context,
 			const ctypes::CallConvention &callConvention = ctypes::CallConvention());
 
 		ctypes::Function::Parameters parseParameters(
-			const llvm::itanium_demangle::NodeArray &params,
-			const std::shared_ptr<ctypes::Context> &context);
+			const llvm::itanium_demangle::NodeArray &params);
 
 		std::shared_ptr<ctypes::Type> parseRetType(
-			const Node *retTypeNode,
-			const std::shared_ptr<ctypes::Context> &context);
+			const Node *retTypeNode);
+
+		std::shared_ptr<ctypes::Type> parseName(
+			const llvm::itanium_demangle::NameType *nameNode);
+
+		std::shared_ptr<ctypes::Type> parseQualifiedName(
+			const llvm::itanium_demangle::QualType *qualNode);
+
+		void parseQuals(llvm::itanium_demangle::Qualifiers quals,
+			std::shared_ptr<ctypes::Type> &type);
+
+		std::shared_ptr<ctypes::PointerType> parsePointer(
+			const llvm::itanium_demangle::PointerType *pointerNode);
+
+		std::shared_ptr<ctypes::ReferenceType> parseRef(
+			const llvm::itanium_demangle::ReferenceType *refNode);
 
 		std::shared_ptr<ctypes::Type> parseType(const std::string &typeName);
 
