@@ -44,6 +44,7 @@ class ASTCTypesParser: public CTypesParser
 			TIntegral,
 			TFloat,
 			TBool,
+			TClass,
 			TUnknown
 		};
 

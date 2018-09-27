@@ -10,17 +10,18 @@
 #include "llvm/Demangle/StringView.h"
 
 #include "retdec/ctypesparser/ast_ctypes_parser.h"
-#include <retdec/ctypes/floating_point_type.h>
-#include <retdec/ctypes/reference_type.h>
-#include "retdec/ctypes/function.h"
-#include "retdec/ctypes/type.h"
-#include "retdec/ctypes/integral_type.h"
-#include "retdec/ctypes/void_type.h"
-#include "retdec/ctypes/unknown_type.h"
 #include "retdec/ctypes/context.h"
+#include "retdec/ctypes/class_type.h"
+#include "retdec/ctypes/floating_point_type.h"
+#include "retdec/ctypes/function.h"
+#include "retdec/ctypes/integral_type.h"
 #include "retdec/ctypes/parameter.h"
 #include "retdec/ctypes/pointer_type.h"
 #include "retdec/ctypes/qualifiers.h"
+#include "retdec/ctypes/reference_type.h"
+#include "retdec/ctypes/type.h"
+#include "retdec/ctypes/void_type.h"
+#include "retdec/ctypes/unknown_type.h"
 #include "retdec/utils/container.h"
 
 namespace retdec {
@@ -117,8 +118,8 @@ std::pair<ASTCTypesParser::Types,
 		toSearch = "bool";
 		type = Types::TBool;
 	} else {
-		toSearch = typeName;
-		type = Types::TUnknown;
+		//probably class name
+		return {Types::TClass, 0};
 	}
 
 	return {type, getBitWidthOrDefault(toSearch)};
@@ -140,6 +141,9 @@ std::shared_ptr<ctypes::Type> ASTCTypesParser::parseType(
 	case Types::TFloat: {
 		auto generatedName = genName(typeName);
 		return ctypes::FloatingPointType::create(context, generatedName, bitWidth);
+	}
+	case Types::TClass: {
+		return ctypes::ClassType::create(context, typeName);
 	}
 	default: return ctypes::UnknownType::create();
 	}
@@ -218,12 +222,7 @@ std::shared_ptr<ctypes::PointerType> ASTCTypesParser::parsePointer(
 	}
 	default:return nullptr;
 	}
-
-//	auto pointeeNode = pointerNode->getPointee();
-//	auto pointeeNameView = pointeeNode->getBaseName();
-//	auto pointeeNameString = stringViewToString(pointeeNameView);
-//	auto pointeeType = parseType(pointeeNameString);
-//	return ctypes::PointerType::create(context, pointeeType);    //TODO pointer width
+	//TODO pointer width
 }
 
 /**
@@ -324,7 +323,7 @@ std::shared_ptr<retdec::ctypes::Function> ASTCTypesParser::parseFunction(
 	const llvm::itanium_demangle::FunctionEncoding *funcN,
 	const ctypes::CallConvention &callConvention)
 {
-	assert(funcN && "violated precondition - funcN cannot be nullptr");
+	assert(funcN && "violated precondition - funcN cannot be null");
 
 	auto nameNode = funcN->getName();
 

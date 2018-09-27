@@ -163,12 +163,17 @@ TEST_F(ASTCTypesParserTests, ConstQualifierNotSetAsDefault)
 	EXPECT_FALSE(std::dynamic_pointer_cast<ctypes::IntegralType>(referenced)->isConstant());
 }
 
-//TEST_F(ASTCTypesParserTests, ClassNameAsParameter)
-//{
-//	const char *mangled = "_Z3fooR3Bar";
-//
-//	auto context = mangledToCtypes(mangled);
-//}
+TEST_F(ASTCTypesParserTests, ClassNameAsParameter)
+{
+	const char *mangled = "_Z3fooR3Bar";	// foo(Bar&);
+
+	auto context = mangledToCtypes(mangled);
+
+	EXPECT_TRUE(context->hasFunctionWithName("foo"));
+	EXPECT_TRUE(context->hasNamedType("Bar"));
+	auto Bar = context->getNamedType("Bar");
+	EXPECT_TRUE(Bar->isClass());
+}
 
 //TEST_F(ASTCTypesParserTests, QualifiersTest)
 //{
