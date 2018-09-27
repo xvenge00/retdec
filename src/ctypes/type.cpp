@@ -30,6 +30,11 @@ bool Type::isArray() const
 	return false;
 }
 
+bool Type::isClass() const
+{
+	return false;
+}
+
 bool Type::isEnum() const
 {
 	return false;
@@ -55,6 +60,11 @@ bool Type::isPointer() const
 	return false;
 }
 
+bool Type::isReference() const
+{
+	return false;
+}
+
 bool Type::isStruct() const
 {
 	return false;
@@ -76,11 +86,6 @@ bool Type::isUnknown() const
 }
 
 bool Type::isVoid() const
-{
-	return false;
-}
-
-bool Type::isReference() const
 {
 	return false;
 }

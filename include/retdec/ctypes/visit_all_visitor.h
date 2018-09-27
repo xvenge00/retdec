@@ -27,6 +27,7 @@ class VisitAllVisitor: public Visitor
 		/// @name Visitor interface.
 		/// @{
 		virtual void visit(const std::shared_ptr<ArrayType> &type) override;
+		virtual void visit(const std::shared_ptr<ClassType> &type) override;
 		virtual void visit(const std::shared_ptr<EnumType> &type) override;
 		virtual void visit(const std::shared_ptr<FloatingPointType> &type) override;
 		virtual void visit(const std::shared_ptr<FunctionType> &type) override;

@@ -13,6 +13,7 @@ namespace retdec {
 namespace ctypes {
 
 class ArrayType;
+class ClassType;
 class EnumType;
 class FloatingPointType;
 class FunctionType;
@@ -34,6 +35,7 @@ class Visitor
 		virtual ~Visitor() = 0;
 
 		virtual void visit(const std::shared_ptr<ArrayType> &type) = 0;
+		virtual void visit(const std::shared_ptr<ClassType> &type) = 0;
 		virtual void visit(const std::shared_ptr<EnumType> &type) = 0;
 		virtual void visit(const std::shared_ptr<FloatingPointType> &type) = 0;
 		virtual void visit(const std::shared_ptr<FunctionType> &type) = 0;

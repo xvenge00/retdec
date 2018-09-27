@@ -32,6 +32,7 @@ set(CTYPES_SOURCES
 	namespace.cpp
 	reference_type.cpp
 	qualifiers.cpp
+	class_type.cpp
 )
 
 add_library(retdec-ctypes STATIC ${CTYPES_SOURCES})

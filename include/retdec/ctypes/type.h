@@ -28,17 +28,18 @@ class Type: public Visitable, public ConstantQualifier, public std::enable_share
 		unsigned getBitWidth() const;
 
 		virtual bool isArray() const;
+		virtual bool isClass() const;
 		virtual bool isEnum() const;
 		virtual bool isFloatingPoint() const;
 		virtual bool isFunction() const;
 		virtual bool isIntegral() const;
 		virtual bool isPointer() const;
+		virtual bool isReference() const;
 		virtual bool isStruct() const;
 		virtual bool isTypedef() const;
 		virtual bool isUnion() const;
 		virtual bool isUnknown() const;
 		virtual bool isVoid() const;
-		virtual bool isReference() const;
 
 	protected:
 		Type() = default;

@@ -5,6 +5,7 @@
 */
 
 #include "retdec/ctypes/array_type.h"
+#include "retdec/ctypes/class_type.h"
 #include "retdec/ctypes/enum_type.h"
 #include "retdec/ctypes/floating_point_type.h"
 #include "retdec/ctypes/function_type.h"
@@ -41,6 +42,14 @@ void VisitAllVisitor::visit(const std::shared_ptr<ArrayType> &type)
 	}
 
 	type->getElementType()->accept(this);
+}
+
+void VisitAllVisitor::visit(const std::shared_ptr<ClassType> &type)
+{
+	if (makeAccessedAndCheckIfAccessed(type))
+	{
+		return;
+	}
 }
 
 void VisitAllVisitor::visit(const std::shared_ptr<EnumType> &type)
