@@ -29,7 +29,6 @@ set(CTYPES_SOURCES
 	void_type.cpp
 	template.cpp
 	template_param.cpp
-	namespace.cpp
 	reference_type.cpp
 	qualifiers.cpp
 	class_type.cpp
