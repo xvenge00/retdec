@@ -42,10 +42,12 @@ class Function: public ConstantQualifier
 			const std::shared_ptr<Type> &returnType,
 			const Parameters &parameters,
 			const CallConvention &callConvention = CallConvention(),
-			VarArgness varArgness = VarArgness::IsNotVarArg
+			VarArgness varArgness = VarArgness::IsNotVarArg,
+			const std::string &nameSpace = ""
 		);
 
 		const std::string &getName() const;
+		const std::string &getNameSpace() const;
 		std::shared_ptr<FunctionType> getType() const;
 		std::shared_ptr<Type> getReturnType() const;
 
@@ -87,7 +89,8 @@ class Function: public ConstantQualifier
 		Function(
 			const std::string &name,
 			const std::shared_ptr<FunctionType> &functionType,
-			const Parameters &parameters
+			const Parameters &parameters,
+			const std::string &nameSpace = ""
 		);
 
 		static std::shared_ptr<FunctionType> createFunctionType(
@@ -102,6 +105,7 @@ class Function: public ConstantQualifier
 		std::string name;
 		std::shared_ptr<FunctionType> functionType;
 		Parameters parameters;
+		std::string nameSpace;
 		FunctionDeclaration declaration;
 		HeaderFile headerFile;
 };

@@ -33,8 +33,10 @@ class Context
 	public:
 		/// @name Access to functions.
 		/// @{
-		bool hasFunctionWithName(const std::string &name) const;
-		std::shared_ptr<Function> getFunctionWithName(const std::string &name) const;
+		bool hasFunctionWithName(
+			const std::string &name, const std::string &nameSpace = "") const;
+		std::shared_ptr<Function> getFunctionWithName(
+			const std::string &name, const std::string &nameSpace = "") const;
 		void addFunction(const std::shared_ptr<Function> &function);
 		/// @}
 
@@ -87,7 +89,10 @@ class Context
 		/// @}
 
 	private:
-		using Functions = std::unordered_map<std::string, std::shared_ptr<Function>>;
+		using Functions = std::map<
+		    std::pair<std::string, std::string>,
+		    std::shared_ptr<Function>
+		>;
 		/// Stored functions.
 		Functions functions;
 

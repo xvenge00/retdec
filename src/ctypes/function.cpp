@@ -20,13 +20,19 @@ namespace ctypes {
 Function::Function(
 	const std::string &name,
 	const std::shared_ptr<FunctionType> &functionType,
-	const Parameters &parameters):
+	const Parameters &parameters,
+	const std::string &nameSpace):
 	ConstantQualifier(), name(name),
-	functionType(functionType),	parameters(parameters) {}
+	functionType(functionType),	parameters(parameters),
+	nameSpace(nameSpace){}
 
 const std::string &Function::getName() const
 {
 	return name;
+}
+const std::string &Function::getNameSpace() const
+{
+	return nameSpace;
 }
 
 /**
@@ -144,6 +150,7 @@ bool Function::isVarArg() const
 * @param parameters Function parameters.
 * @param callConvention Function call convention.
 * @param varArgness Info that function takes variable number of arguments or not.
+* @param nameSpace namespace of the function
 *
 * @par Preconditions
 *  - @a context is not null
@@ -158,12 +165,13 @@ std::shared_ptr<Function> Function::create(
 	const std::shared_ptr<Type> &returnType,
 	const Parameters &parameters,
 	const CallConvention &callConvention,
-	VarArgness varArgness)
+	VarArgness varArgness,
+	const std::string &nameSpace)
 {
 	assert(context && "violated precondition - context cannot be null");
 	assert(returnType && "violated precondition - returnType cannot be null");
 
-	auto function = context->getFunctionWithName(name);
+	auto function = context->getFunctionWithName(name, nameSpace);
 	if (function)
 	{
 		return function;
@@ -173,7 +181,7 @@ std::shared_ptr<Function> Function::create(
 		context, returnType, parameters, callConvention, varArgness
 	);
 	std::shared_ptr<Function> newFunc(
-		new Function(name, funcType, parameters)
+		new Function(name, funcType, parameters, nameSpace)
 	);
 	context->addFunction(newFunc);
 	return newFunc;

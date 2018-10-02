@@ -27,13 +27,15 @@ class FunctionTests : public Test
 		FunctionTests():
 			context(std::make_shared<Context>()),
 			intType(IntegralType::create(context, "int", 32)),
-			paramsOneInt{Parameter("firstParamName", intType)} {}
+			paramsOneInt{Parameter("firstParamName", intType)},
+			globalNamespace{} {}
 
 	protected:
 		std::shared_ptr<Context> context;
 		std::shared_ptr<Type> intType;
 		Function::Parameters emptyParams;
 		Function::Parameters paramsOneInt;
+		std::string globalNamespace;
 };
 
 #if DEATH_TESTS_ENABLED
@@ -207,6 +209,47 @@ ConstantFunction)
 		CallConvention("cdecl"), Function::VarArgness::IsNotVarArg);
 	func->setAsConstant();
 	EXPECT_TRUE(func->isConstant());
+}
+
+TEST_F(FunctionTests,
+NamespaceTests) {
+	std::string name{"newF"};
+	std::string nameSpace{"n1"};
+
+	auto func1 = Function::create(
+		context, name, intType, emptyParams,
+		CallConvention("cdecl"), Function::VarArgness::IsNotVarArg, nameSpace);
+
+	EXPECT_TRUE(context->hasFunctionWithName(name, nameSpace));
+	auto func2 = context->getFunctionWithName(name, nameSpace);
+	EXPECT_EQ(func1, func2);
+	EXPECT_EQ(nameSpace, func2->getNameSpace());
+}
+
+TEST_F(FunctionTests,
+	   FunctionsWithSameNameAndNamespaceAreEqual)
+{
+	auto func1 = Function::create(
+		context, "newF", intType, emptyParams,
+		CallConvention("cdecl"), Function::VarArgness::IsNotVarArg, "n1");
+	auto func2 = Function::create(
+		context, "newF", intType, emptyParams,
+		CallConvention("cdecl"), Function::VarArgness::IsNotVarArg, "n1");
+
+	EXPECT_EQ(func1, func2);
+}
+
+TEST_F(FunctionTests,
+FunctionsWithSameNameButDifferentNamespaceAreNotEqual)
+{
+	auto func1 = Function::create(
+		context, "newF", intType, emptyParams,
+		CallConvention("cdecl"), Function::VarArgness::IsNotVarArg, "n1");
+	auto func2 = Function::create(
+		context, "newF", intType, emptyParams,
+		CallConvention("cdecl"), Function::VarArgness::IsNotVarArg, "n2");
+
+	EXPECT_NE(func1, func2);
 }
 
 } // namespace tests

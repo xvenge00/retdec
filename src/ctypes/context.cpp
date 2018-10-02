@@ -22,9 +22,10 @@ namespace ctypes {
 *
 * @return True if context has function, false otherwise.
 */
-bool Context::hasFunctionWithName(const std::string &name) const
+bool Context::hasFunctionWithName(
+	const std::string &name, const std::string &nameSpace) const
 {
-	return retdec::utils::mapHasKey(functions, name);
+	return retdec::utils::mapHasKey(functions, std::make_pair(name, nameSpace));
 }
 
 /**
@@ -32,9 +33,10 @@ bool Context::hasFunctionWithName(const std::string &name) const
 *
 * @return Requested function. If it is not in context return @c nullptr.
 */
-std::shared_ptr<Function> Context::getFunctionWithName(const std::string &name) const
+std::shared_ptr<Function> Context::getFunctionWithName(
+	const std::string &name, const std::string &nameSpace) const
 {
-	return retdec::utils::mapGetValueOrDefault(functions, name);
+	return retdec::utils::mapGetValueOrDefault(functions, std::make_pair(name, nameSpace));
 }
 
 /**
@@ -49,7 +51,8 @@ void Context::addFunction(const std::shared_ptr<Function> &function)
 {
 	assert(function && "violated precondition - function cannot be null");
 
-	functions.emplace(function->getName(), function);
+	auto key = std::make_pair(function->getName(), function->getNameSpace());
+	functions.emplace(key, function);
 }
 
 /**
