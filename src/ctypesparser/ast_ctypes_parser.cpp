@@ -41,16 +41,22 @@ const std::string genName(const std::string &baseName = std::string(""))
 	static unsigned long long generator;
 	return baseName + std::to_string(generator);
 }
-
 } // anonymous namespace
 
 using Kind = ::llvm::itanium_demangle::Node::Kind;
 
 ASTCTypesParser::ASTCTypesParser() :
-	CTypesParser(), context(std::make_shared<ctypes::Context>()) {}
+	CTypesParser(), context(std::make_shared<ctypes::Context>()),
+	defaultCallConv(ctypes::CallConvention()) {}
 
 ASTCTypesParser::ASTCTypesParser(unsigned defaultBitWidth) :
-	CTypesParser(defaultBitWidth), context(std::make_shared<ctypes::Context>()) {}
+	CTypesParser(defaultBitWidth), context(std::make_shared<ctypes::Context>()),
+	defaultCallConv(ctypes::CallConvention()) {}
+
+void ASTCTypesParser::setCallConv(const retdec::ctypes::CallConvention &callConv)
+{
+	defaultCallConv = callConv;
+}
 
 void ASTCTypesParser::addTypesToMap(const TypeWidths &widthmap)
 {
@@ -333,10 +339,9 @@ std::string ASTCTypesParser::getName(const llvm::itanium_demangle::Node *nameNod
 std::string ASTCTypesParser::getNestedName(
 	const llvm::itanium_demangle::Node *nameNode)
 {
-	switch(nameNode->getKind()){
-	case Kind::KNameType:
-		return getName(nameNode);
-	case Kind::KNestedName:{
+	switch (nameNode->getKind()) {
+	case Kind::KNameType: return getName(nameNode);
+	case Kind::KNestedName: {
 		std::string nestedName = getNestedName(
 			dynamic_cast<const llvm::itanium_demangle::NestedName *>(nameNode)->getQual());
 		std::string name = getName(nameNode);
@@ -374,8 +379,7 @@ std::pair<std::string, std::string> ASTCTypesParser::parseFuncName(
  * @param funcN Node of Kind::KFunctionEncoding
  */
 std::shared_ptr<retdec::ctypes::Function> ASTCTypesParser::parseFunction(
-	const llvm::itanium_demangle::FunctionEncoding *funcN,
-	const ctypes::CallConvention &callConvention)
+	const llvm::itanium_demangle::FunctionEncoding *funcN)
 {
 	assert(funcN && "violated precondition - funcN cannot be null");
 
@@ -390,7 +394,7 @@ std::shared_ptr<retdec::ctypes::Function> ASTCTypesParser::parseFunction(
 	auto paramsT = parseParameters(funcN->getParams());
 	auto varargness = ctypes::FunctionType::VarArgness::IsNotVarArg;
 	auto function = ctypes::Function::create(
-		context, funcName, retT, paramsT, callConvention, varargness, funcNamespace);
+		context, funcName, retT, paramsT, defaultCallConv, varargness, funcNamespace);
 
 	//TODO rewrite context to accept template
 	return function;
@@ -400,13 +404,12 @@ std::shared_ptr<retdec::ctypes::Function> ASTCTypesParser::parseFunction(
  * @brief Parses CTypes from AST created by itanium demangler.
  */
 std::shared_ptr<ctypes::Context> ASTCTypesParser::parse(
-	const llvm::itanium_demangle::Node *ast,
-	const retdec::ctypes::CallConvention &callConvention)
+	const llvm::itanium_demangle::Node *ast)
 {
 	switch (ast->getKind()) {
 	case llvm::itanium_demangle::Node::Kind::KFunctionEncoding : {
 		auto funcN = dynamic_cast<const llvm::itanium_demangle::FunctionEncoding *>(ast);
-		auto funcT = parseFunction(funcN, callConvention);
+		auto funcT = parseFunction(funcN);
 		break;
 	}
 	default: break;
