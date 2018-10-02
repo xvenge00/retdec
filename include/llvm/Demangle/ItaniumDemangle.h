@@ -893,6 +893,10 @@ struct NestedName : Node {
 
   StringView getBaseName() const override { return Name->getBaseName(); }
 
+  // RetDec {
+  Node *getQual() const { return Qual; }
+  // } RetDec
+
   void printLeft(OutputStream &S) const override {
     Qual->print(S);
     S += "::";

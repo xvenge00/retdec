@@ -54,6 +54,9 @@ class ASTCTypesParser: public CTypesParser
 			const llvm::itanium_demangle::FunctionEncoding *funcN,
 			const ctypes::CallConvention &callConvention = ctypes::CallConvention());
 
+		std::pair<std::string, std::string> parseFuncName(
+			const llvm::itanium_demangle::Node *nameNode);
+
 		ctypes::Function::Parameters parseParameters(
 			const llvm::itanium_demangle::NodeArray &params);
 
@@ -62,6 +65,12 @@ class ASTCTypesParser: public CTypesParser
 
 		std::shared_ptr<ctypes::Type> parseName(
 			const llvm::itanium_demangle::NameType *nameNode);
+
+		std::string getName(
+			const llvm::itanium_demangle::Node *nameNode);
+
+		std::string getNestedName(
+			const llvm::itanium_demangle::Node *nameNode);
 
 		std::shared_ptr<ctypes::Type> parseQualifiedName(
 			const llvm::itanium_demangle::QualType *qualNode);

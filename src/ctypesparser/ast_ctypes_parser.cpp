@@ -160,7 +160,6 @@ std::shared_ptr<ctypes::Type> ASTCTypesParser::parseName(
 
 	auto nameV = nameNode->getBaseName();
 	return parseType(stringViewToString(nameV));
-	//TODO parse class names
 }
 
 /**
@@ -310,9 +309,64 @@ std::shared_ptr<ctypes::Type> ASTCTypesParser::parseRetType(
 	}
 //	case Kind::KQualifiedName:{
 //		return parseQualifiedName(dynamic_cast<const llvm::itanium_demangle::QualType *>(retTypeNode));
-//	}
+//	} //TODO
 	default: return ctypes::UnknownType::create();
 	}
+}
+
+/**
+ * @brief Gets string representation od Node name
+ * @param nameNode Node of KNameNode or KNestedName kind.
+ * @return string representation of nested name.
+ */
+std::string ASTCTypesParser::getName(const llvm::itanium_demangle::Node *nameNode)
+{
+	auto nameView = nameNode->getBaseName();
+	return stringViewToString(nameView);
+}
+
+/**
+ * @brief Gets Nested names from Node in form "n1::n2::n3"
+ * @param nameNode Node of KNameNode or KNestedName kind.
+ * @return string representation of nested name.
+ */
+std::string ASTCTypesParser::getNestedName(
+	const llvm::itanium_demangle::Node *nameNode)
+{
+	switch(nameNode->getKind()){
+	case Kind::KNameType:
+		return getName(nameNode);
+	case Kind::KNestedName:{
+		std::string nestedName = getNestedName(
+			dynamic_cast<const llvm::itanium_demangle::NestedName *>(nameNode)->getQual());
+		std::string name = getName(nameNode);
+		return nestedName + "::" + name;
+	}
+	default: return "";
+	}
+}
+
+/**
+ * @brief Parses name from Node into namespace and name pair
+ * @param nameNode pointer to Node of KNameNode or KNestedName type
+ * @return pair of <namespaceName, name>
+ */
+std::pair<std::string, std::string> ASTCTypesParser::parseFuncName(
+	const llvm::itanium_demangle::Node *nameNode)
+{
+	std::string name{};
+	std::string namespaceName{};
+
+	auto nameView = nameNode->getBaseName();
+	name = stringViewToString(nameView);
+
+	if (nameNode->getKind() == Kind::KNestedName) {
+
+		namespaceName = getNestedName(
+			dynamic_cast<const llvm::itanium_demangle::NestedName *>(nameNode)->getQual());
+	}
+
+	return {namespaceName, name};
 }
 
 /**
@@ -328,13 +382,15 @@ std::shared_ptr<retdec::ctypes::Function> ASTCTypesParser::parseFunction(
 	auto nameNode = funcN->getName();
 
 //	bool isTemplate = nameNode->getKind() == Kind::KNameWithTemplateArgs;
-
-	StringView nameV{nameNode->getBaseName()};
-	std::string name{stringViewToString(nameV)};
+	std::string funcName{};
+	std::string funcNamespace{};
+	std::tie(funcNamespace, funcName) = parseFuncName(nameNode);
 
 	auto retT = parseRetType(funcN->getReturnType());
 	auto paramsT = parseParameters(funcN->getParams());
-	auto function = ctypes::Function::create(context, name, retT, paramsT, callConvention);
+	auto varargness = ctypes::FunctionType::VarArgness::IsNotVarArg;
+	auto function = ctypes::Function::create(
+		context, funcName, retT, paramsT, callConvention, varargness, funcNamespace);
 
 	//TODO rewrite context to accept template
 	return function;

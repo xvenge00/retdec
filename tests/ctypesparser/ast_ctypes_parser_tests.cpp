@@ -175,6 +175,27 @@ TEST_F(ASTCTypesParserTests, ClassNameAsParameter)
 	EXPECT_TRUE(Bar->isClass());
 }
 
+TEST_F(ASTCTypesParserTests, functionWithNamespace)
+{
+	std::string name{"foo"};
+	std::string nameSpace{"n1::n2::n3::n4"};
+	const char *mangled = "_ZN2n12n22n32n43fooEi"; // n1::n2::n3::n4::foo(int)
+
+	auto context = mangledToCtypes(mangled);
+
+	EXPECT_FALSE(context->hasFunctionWithName(name));
+	EXPECT_TRUE(context->hasFunctionWithName(name, nameSpace));
+
+	auto func = context->getFunctionWithName(name, nameSpace);
+	EXPECT_EQ(func->getName(), name);
+	EXPECT_EQ(func->getNameSpace(), nameSpace);
+}
+
+//TEST_F(ASTCTypesParserTests, MultipleRuns)
+//{
+// after two runs there are multiple functions in context
+//}
+
 //TEST_F(ASTCTypesParserTests, QualifiersTest)
 //{
 //	const char *mangled = "_Z3fooIiEVKdPid";	//is template
