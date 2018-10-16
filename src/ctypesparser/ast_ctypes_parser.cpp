@@ -406,6 +406,16 @@ std::shared_ptr<retdec::ctypes::Function> ASTCTypesParser::parseFunction(
 std::shared_ptr<ctypes::Context> ASTCTypesParser::parse(
 	const llvm::itanium_demangle::Node *ast)
 {
+	context = std::make_shared<ctypes::Context>();
+	parseInto(ast, context);
+	return context;
+}
+
+void ASTCTypesParser::parseInto(
+	const retdec::ctypesparser::ASTCTypesParser::Node *ast,
+	std::shared_ptr<retdec::ctypes::Context> &_context)
+{
+	context = _context;
 	switch (ast->getKind()) {
 	case llvm::itanium_demangle::Node::Kind::KFunctionEncoding : {
 		auto funcN = dynamic_cast<const llvm::itanium_demangle::FunctionEncoding *>(ast);
@@ -414,8 +424,6 @@ std::shared_ptr<ctypes::Context> ASTCTypesParser::parse(
 	}
 	default: break;
 	}
-
-	return context;
 }
 
 } // namespace ctypesparser

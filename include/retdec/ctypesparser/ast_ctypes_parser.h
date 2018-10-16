@@ -34,6 +34,10 @@ class ASTCTypesParser: public CTypesParser
 
 		std::shared_ptr<ctypes::Context> parse(
 			const Node *ast);
+		void parseInto(
+			const Node *ast,
+			std::shared_ptr<retdec::ctypes::Context> &context
+			);
 
 		void addTypesToMap(const TypeWidths &widthMap);
 

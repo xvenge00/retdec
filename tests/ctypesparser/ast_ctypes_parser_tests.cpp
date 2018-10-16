@@ -194,10 +194,27 @@ TEST_F(ASTCTypesParserTests, functionWithNamespace)
 	EXPECT_EQ(func->getNameSpace(), nameSpace);
 }
 
-//TEST_F(ASTCTypesParserTests, MultipleRuns)
-//{
-// after two runs there are multiple functions in context
-//}
+TEST_F(ASTCTypesParserTests, AfterTwoRunsTwoFunctionsInContext)
+{
+ 	const char *mangled1 = "_Z3food";
+ 	const char *mangled2 = "_Z3bard";
+
+	auto context = std::make_shared<ctypes::Context>();
+
+	llvm::itanium_demangle::Db<llvm::itanium_demangle::DefaultAllocator>
+		demangler1{mangled1, mangled1 + std::strlen(mangled1)};
+	llvm::itanium_demangle::Db<llvm::itanium_demangle::DefaultAllocator>
+		demangler2{mangled2, mangled2 + std::strlen(mangled2)};
+
+	auto ast1 = llvm::itaniumDemangleToAST(&status, &demangler1);
+	auto ast2 = llvm::itaniumDemangleToAST(&status, &demangler2);
+
+	parser.parseInto(ast1, context);
+	parser.parseInto(ast2, context);
+
+ 	EXPECT_TRUE(context->hasFunctionWithName("foo"));
+	EXPECT_TRUE(context->hasFunctionWithName("bar"));
+}
 
 //TEST_F(ASTCTypesParserTests, QualifiersTest)
 //{
