@@ -306,14 +306,7 @@ char *llvm::itaniumDemangle(const char *MangledName, char *Buf,
 }
 
 // RetDec {
-//TODO return demangler as shared_ptr
-Node *llvm::itaniumDemangleToAST(const char *MangledName, int *Status, Demangler *demangler) {
-  if (MangledName == nullptr) {
-    if (Status)
-      *Status = demangle_invalid_args;
-    return nullptr;
-  }
-
+Node *llvm::itaniumDemangleToAST(int *Status, Demangler *demangler) {
   int InternalStatus = demangle_success;
 
   auto AST = demangler->parse();

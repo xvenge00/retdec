@@ -53,7 +53,7 @@ class ASTCTypesParserTests : public Test
 			llvm::itanium_demangle::Db<llvm::itanium_demangle::DefaultAllocator>
 				demangler{MangledName, MangledName + std::strlen(MangledName)};
 
-			auto ast = llvm::itaniumDemangleToAST(MangledName, &status, &demangler);
+			auto ast = llvm::itaniumDemangleToAST(&status, &demangler);
 
 			// TODO check status
 
