@@ -11,6 +11,7 @@
 
 #include "llvm/Demangle/ItaniumDemangle.h"
 #include "llvm/Demangle/Demangle.h"
+#include "llvm/Demangle/allocator.h"
 
 #include "retdec/ctypesparser/ast_ctypes_parser.h"
 #include "retdec/ctypes/context.h"
@@ -24,9 +25,6 @@ namespace retdec {
 namespace ctypesparser {
 namespace tests {
 
-//TODO build AST myself
-//TODO rewrite test
-//TODO check return codes
 //TODO test regexps
 
 void setMap(ASTCTypesParser &parser) {
@@ -43,31 +41,36 @@ class ASTCTypesParserTests : public Test
 	public:
 		ASTCTypesParserTests():
 			status(),
-			parser(),
-			demangler(){
+			parser(){
 			setMap(parser);
 		}
-		~ASTCTypesParserTests() override {
-			delete demangler;
-		}
 
-		std::shared_ptr<ctypes::Context> mangledToCtypes(const char *mangled){
-			auto ast = llvm::itaniumDemangleToAST(mangled, &status, &demangler);
+		std::shared_ptr<ctypes::Context> mangledToCtypes(const char *MangledName){
+			if (MangledName == nullptr) {
+				return nullptr;
+			}
+
+			llvm::itanium_demangle::Db<llvm::itanium_demangle::DefaultAllocator>
+				demangler{MangledName, MangledName + std::strlen(MangledName)};
+
+			auto ast = llvm::itaniumDemangleToAST(MangledName, &status, &demangler);
+
+			// TODO check status
+
 			return parser.parse(ast);
 		}
 
 	protected:
 		int status;
 		ASTCTypesParser parser;
-		llvm::itanium_demangle::Db<llvm::itanium_demangle::DefaultAllocator> *demangler;
 };
 
 TEST_F(ASTCTypesParserTests, Basic)
 {
 	const char *mangled = "_Z3fooii";	//foo(int, int);
-	auto ast = llvm::itaniumDemangleToAST(mangled, &status, &demangler);
 
-	auto context = parser.parse(ast);
+	auto context = mangledToCtypes(mangled);
+
 	EXPECT_TRUE(context->hasFunctionWithName("foo"));
 
 	auto function = context->getFunctionWithName("foo");

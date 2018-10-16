@@ -5149,7 +5149,7 @@ template<typename Alloc> Node *Db<Alloc>::parse() {
 
 // RetDec {
 using DefaultAllocator = llvm::itanium_demangle::DefaultAllocator;
-itanium_demangle::Node *itaniumDemangleToAST(const char *mangled_name, int *status, itanium_demangle::Db<DefaultAllocator> **demangler);
+itanium_demangle::Node *itaniumDemangleToAST(const char *mangled_name, int *status, itanium_demangle::Db<DefaultAllocator> *demangler);
 // } RetDec
 
 }  // namespace llvm
