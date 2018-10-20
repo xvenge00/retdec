@@ -180,7 +180,7 @@ std::shared_ptr<ctypes::Type> ASTCTypesParser::parseQualifiedName(
 
 	auto quals = qualNode->getQuals();
 	auto childNode =
-		dynamic_cast<const itanium::NameType *>(qualNode->getChild());
+		static_cast<const itanium::NameType *>(qualNode->getChild());
 	auto referencedType = parseName(childNode);
 
 	parseQuals(quals, referencedType);
@@ -217,12 +217,12 @@ std::shared_ptr<ctypes::PointerType> ASTCTypesParser::parsePointer(
 
 	switch (pointeeNode->getKind()) {
 	case Kind::KNameType: {
-		auto childNode = dynamic_cast<const itanium::NameType *>(pointeeNode);
+		auto childNode = static_cast<const itanium::NameType *>(pointeeNode);
 		auto pointeeType = parseName(childNode);
 		return ctypes::PointerType::create(context, pointeeType);
 	}
 	case Kind::KQualType: {
-		auto childNode = dynamic_cast<const itanium::QualType *>(pointeeNode);
+		auto childNode = static_cast<const itanium::QualType *>(pointeeNode);
 		auto pointeeType = parseQualifiedName(childNode);
 		return ctypes::PointerType::create(context, pointeeType);
 	}
@@ -244,12 +244,12 @@ std::shared_ptr<ctypes::ReferenceType> ASTCTypesParser::parseRef(
 
 	switch (referencedNode->getKind()) {
 	case Kind::KNameType: {
-		auto childNode = dynamic_cast<const itanium::NameType *>(referencedNode);
+		auto childNode = static_cast<const itanium::NameType *>(referencedNode);
 		auto referencedType = parseName(childNode);
 		return ctypes::ReferenceType::create(context, referencedType);
 	}
 	case Kind::KQualType: {
-		auto qualNode = dynamic_cast<const itanium::QualType *>(referencedNode);
+		auto qualNode = static_cast<const itanium::QualType *>(referencedNode);
 		auto referencedType = parseQualifiedName(qualNode);
 		return ctypes::ReferenceType::create(context, referencedType);
 	}
@@ -273,20 +273,20 @@ ctypes::Function::Parameters ASTCTypesParser::parseParameters(
 	for (size_t i = 0; i < size; ++i) {
 		switch (params[i]->getKind()) {
 		case Kind::KNameType: {
-			auto nameNode = dynamic_cast<const itanium::NameType *>(params[i]);
+			auto nameNode = static_cast<const itanium::NameType *>(params[i]);
 			auto type = parseName(nameNode);
 			retParams.emplace_back(ctypes::Parameter(type->getName(), type));
 			break;
 		}
 		case Kind::KPointerType: {
-			auto pointerNode = dynamic_cast<const itanium::PointerType *>(params[i]);
+			auto pointerNode = static_cast<const itanium::PointerType *>(params[i]);
 			auto pointerType = parsePointer(pointerNode);
 			retParams.emplace_back(ctypes::Parameter(pointerType->getName(), pointerType));
 			break;
 		}
 		case Kind::KReferenceType: {
 			auto referenceNode =
-				dynamic_cast<const itanium::ReferenceType *>(params[i]);
+				static_cast<const itanium::ReferenceType *>(params[i]);
 			auto referenceType = parseRef(referenceNode);
 			retParams.emplace_back(ctypes::Parameter(referenceType->getName(), referenceType));
 			break;
@@ -312,7 +312,7 @@ std::shared_ptr<ctypes::Type> ASTCTypesParser::parseRetType(
 
 	switch (retTypeNode->getKind()) {
 	case Kind::KNameType: {
-		return parseName(dynamic_cast<const itanium::NameType *>(retTypeNode));
+		return parseName(static_cast<const itanium::NameType *>(retTypeNode));
 	}
 //	case Kind::KQualifiedName:{
 //		return parseQualifiedName(dynamic_cast<const itanium::QualType *>(retTypeNode));
@@ -344,7 +344,7 @@ std::string ASTCTypesParser::getNestedName(
 	case Kind::KNameType: return getName(nameNode);
 	case Kind::KNestedName: {
 		std::string nestedName = getNestedName(
-			dynamic_cast<const itanium::NestedName *>(nameNode)->getQual());
+			static_cast<const itanium::NestedName *>(nameNode)->getQual());
 		std::string name = getName(nameNode);
 		return nestedName + "::" + name;
 	}
@@ -369,7 +369,7 @@ std::pair<std::string, std::string> ASTCTypesParser::parseFuncName(
 	if (nameNode->getKind() == Kind::KNestedName) {
 
 		namespaceName = getNestedName(
-			dynamic_cast<const itanium::NestedName *>(nameNode)->getQual());
+			static_cast<const itanium::NestedName *>(nameNode)->getQual());
 	}
 
 	return {namespaceName, name};
@@ -419,8 +419,7 @@ void ASTCTypesParser::parseInto(
 	context = _context;
 	switch (ast->getKind()) {
 	case itanium::Node::Kind::KFunctionEncoding : {
-		auto funcN = dynamic_cast<const itanium::FunctionEncoding *>(ast);
-		auto funcT = parseFunction(funcN);
+		parseFunction(static_cast<const itanium::FunctionEncoding *>(ast));
 		break;
 	}
 	default: break;
