@@ -1230,6 +1230,11 @@ struct NameWithTemplateArgs : Node {
     Name->print(S);
     TemplateArgs->print(S);
   }
+
+  // RetDec {
+  Node *getNameNode() const { return Name; }
+  // } RetDec
+
 };
 
 class GlobalQualifiedName final : public Node {

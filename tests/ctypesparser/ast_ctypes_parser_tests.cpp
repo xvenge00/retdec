@@ -216,11 +216,17 @@ TEST_F(ASTCTypesParserTests, AfterTwoRunsTwoFunctionsInContext)
 	EXPECT_TRUE(context->hasFunctionWithName("bar"));
 }
 
-//TEST_F(ASTCTypesParserTests, QualifiersTest)
-//{
-//	const char *mangled = "_Z3fooIiEVKdPid";	//is template
-//	auto context = mangledToCtypes(mangled);
-//}
+TEST_F(ASTCTypesParserTests, TemplateParsing)
+{
+	const char *mangled = "_Z3fooIiET_S0_";	// int foo<int>(int)
+	auto context = mangledToCtypes(mangled);
+
+	EXPECT_TRUE(context->hasFunctionWithName("foo"));
+	auto foo = context->getFunctionWithName("foo");
+	EXPECT_TRUE(foo->getReturnType()->isIntegral());
+	EXPECT_EQ(foo->getParameterCount(), 1);
+	EXPECT_TRUE(foo->getParameter(1).getType()->isIntegral());
+}
 
 } // namespace tests
 } // namespace ctypesparser

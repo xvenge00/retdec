@@ -384,16 +384,23 @@ std::shared_ptr<retdec::ctypes::Function> ASTCTypesParser::parseFunction(
 {
 	assert(funcN && "violated precondition - funcN cannot be null");
 
-	auto nameNode = funcN->getName();
-
-//	bool isTemplate = nameNode->getKind() == Kind::KNameWithTemplateArgs;
 	std::string funcName{};
 	std::string funcNamespace{};
-	std::tie(funcNamespace, funcName) = parseFuncName(nameNode);
+
+	auto nameNode = funcN->getName();
+	bool isTemplate = nameNode->getKind() == Kind::KNameWithTemplateArgs;
+	if (isTemplate) {
+		//TODO template args
+		std::tie(funcNamespace, funcName) = parseFuncName(
+			static_cast<const itanium::NameWithTemplateArgs *>(nameNode)->getNameNode());
+	} else {
+		std::tie(funcNamespace, funcName) = parseFuncName(nameNode);
+	}
 
 	auto retT = parseRetType(funcN->getReturnType());
+
 	auto paramsT = parseParameters(funcN->getParams());
-	auto varargness = ctypes::FunctionType::VarArgness::IsNotVarArg;
+	auto varargness = ctypes::FunctionType::VarArgness::IsNotVarArg;	//TODO
 	auto function = ctypes::Function::create(
 		context, funcName, retT, paramsT, defaultCallConv, varargness, funcNamespace);
 
