@@ -251,6 +251,17 @@ TEST_F(LlvmItaniumDemanglerTests, GCCTestSuite){
 	DEM_EQ("_Z13function_tempIiEv1AIXszcvT_Li999EEE", "void function_temp<int>(A<sizeof ((int)(999))>)");
 	DEM_EQ("_Z14int_if_addableI1YERiP1AIXszpldecvPT_Li0EdecvS4_Li0EEE", "int& int_if_addable<Y>(A<sizeof ((*((Y*)(0))) + (*((Y*)(0))))>*)");
 	DEM_EQ("_Z3fooI1FEN1XIXszdtcl1PclcvT__EEE5arrayEE4TypeEv", "X<sizeof (P((F)()()).array)>::Type foo<F>()");
+	DEM_EQ("_Z5outerIsEcPFilE", "char outer<short>(int (*)(long))");
+	DEM_EQ("_ZZ3BBdI3FooEvvENK3Fob3FabEv", "void BBd<Foo>()::Fob::Fab() const");
+}
+
+TEST_F(LlvmItaniumDemanglerTests, FailingTests) {
+	DEM_EQ("_Z1fIfLi4EEvDv_T0__T_", "void f<float, 4>(float __vector(4))");
+	DEM_EQ("_Z1hI1AEDTcldtfp_miEET_", "decltype(({parm#1}.(operator-))()) h<A>(A)");
+	DEM_EQ("_Z6outer2IsEPFilES1_", "outer2<short>(int (*)(long))int (*)(long)");
+	DEM_EQ("_ZNK1C1fIiEEPFivEv", "int (*C::f<int>() const)()");
+	DEM_EQ("_ZlsRKU3fooU4bart1XS0_", "operator<<(X bart foo const&, X bart)");
+	DEM_EQ("_ZlsRKU3fooU4bart1XS2_", "operator<<(X bart foo const&, X bart foo const)");
 }
 
 TEST_F(LlvmItaniumDemanglerTests, BasicTests) {

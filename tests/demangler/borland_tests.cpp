@@ -320,20 +320,19 @@ TEST_F(BorlandDemanglerTests, NonClassTemplates)
 	DEM_EQ("@Unit1@foo_WideString_$qqr17System@WideString", "__fastcall Unit1::foo_WideString_(System::WideString)");
 	DEM_EQ("@Unit1@foo_RawByteString_$qqr31System@%AnsiStringT$us$i65535$%", "__fastcall Unit1::foo_RawByteString_(System::AnsiStringT<65535>)");
 	DEM_EQ("@Unit1@foo_UTF8String_$qqr31System@%AnsiStringT$us$i65001$%", "__fastcall Unit1::foo_UTF8String_(System::AnsiStringT<65001>)");
-//	DEM_EQ("@%foo_obj_ptr$X$badrp3Bar$g@bar$E%$qv$v",
-//		"void foo_obj_ptr<&bar>(void)");
-//	DEM_EQ("@%foo_func_ptr$X$badrpqv$v$g@fakefunc$qv$E%$qv$v",
-//		"void foo_func_ptr<&(fakefunc(void))>(void)");
-//	// TODO ci tam da argument funkcie
-//	DEM_EQ("@%foo_ref$r3Bar$gbar$%$qv$v",
-//		"void foo_ref<bar>(void)");
-//	DEM_EQ("@%foo_func_ref$r$qv$v$gfakefunc$qv$%$qv$v",
-//		"void foo_func_ref<fakefunc()>(void)");
-//	DEM_EQ("@%Strange$X$badrM3Baz3Bar$g@Baz@bar$E%@foo$qv",
-//		"void Strange::<&(Baz::bar)>::foo(void)");
-//	DEM_EQ("@%foo$i$i1$%$qv$v", "void foo<1>(void)");
-//	DEM_EQ("@%foo$X$badrp60std@%basic_string$c19std@%char_traits$c%17std@%allocator$c%%$g@mystring$E%$qv$v", "void foo<&mystring>");
-//	DEM_EQ("@%Strange$X$badrM6Person3Dog$g@Person@dog$E%@foo$qv", "Strange<&Person::dog>::foo(void)");
+	DEM_EQ("@%foo_obj_ptr$X$badrp3Bar$g@bar$E%$qv$v",
+		"void foo_obj_ptr<&bar>(void)");
+	DEM_EQ("@%foo_func_ptr$X$badrpqv$v$g@fakefunc$qv$E%$qv$v",
+		"void foo_func_ptr<&(fakefunc(void))>(void)");
+	DEM_EQ("@%foo_ref$r3Bar$gbar$%$qv$v",
+		"void foo_ref<bar>(void)");
+	DEM_EQ("@%foo_func_ref$r$qv$v$gfakefunc$qv$%$qv$v",
+		"void foo_func_ref<fakefunc()>(void)");
+	DEM_EQ("@%Strange$X$badrM3Baz3Bar$g@Baz@bar$E%@foo$qv",
+		"void Strange::<&(Baz::bar)>::foo(void)");
+	DEM_EQ("@%foo$i$i1$%$qv$v", "void foo<1>(void)");
+	DEM_EQ("@%foo$X$badrp60std@%basic_string$c19std@%char_traits$c%17std@%allocator$c%%$g@mystring$E%$qv$v", "void foo<&mystring>");
+	DEM_EQ("@%Strange$X$badrM6Person3Dog$g@Person@dog$E%@foo$qv", "Strange<&Person::dog>::foo(void)");
 }
 
 // NOT SUPPORTING __restrict keyword and User defined literal (operator "")
