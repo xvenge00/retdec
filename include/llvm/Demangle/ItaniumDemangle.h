@@ -2188,9 +2188,20 @@ template <typename Derived, typename Alloc> struct AbstractManglingParser {
   bool PermitForwardTemplateReferences = false;
   bool ParsingLambdaParams = false;
 
+  // RetDec {
+  // reference to allocator used
   Alloc &ASTAllocator;
+
+  // if no allocator is given as parameter, this alloc is used
+  // used for compatibility with non-modified library
   Alloc WorkaroundAllocator;
 
+  /*
+   * Function used for copiing strings into allocator.
+   * StringView stores only pointers to start and end of string.
+   * So to make sure the strings are not dealocated between demangling and reading,
+   * we store those strings that are in risk in allocator alongside nodes.
+   */
   StringView copyString(const StringView &Borrowed) {
     char *Stable = static_cast<char *>(ASTAllocator.allocateBytes(Borrowed.size() + 1));
     std::strcpy(Stable, Borrowed.begin());
@@ -2203,6 +2214,7 @@ template <typename Derived, typename Alloc> struct AbstractManglingParser {
 
   AbstractManglingParser(const char *First_, const char *Last_)
 	  : First(First_), Last(Last_), ASTAllocator(WorkaroundAllocator) {}
+  // } RetDec
 
   Derived &getDerived() { return static_cast<Derived &>(*this); }
 
@@ -2531,7 +2543,9 @@ Node *AbstractManglingParser<Derived, Alloc>::parseSourceName(NameState *) {
     return nullptr;
   if (numLeft() < Length || Length == 0)
     return nullptr;
+  // RetDec {
   StringView Name = copyString({First, First + Length});
+  // } RetDec
   First += Length;
   if (Name.startsWith("_GLOBAL__N"))
     return make<NameType>("(anonymous namespace)");
@@ -3207,7 +3221,9 @@ AbstractManglingParser<Alloc, Derived>::parseNumber(bool AllowNegative) {
     return StringView();
   while (numLeft() != 0 && std::isdigit(*First))
     ++First;
+  // RetDec {
   return copyString(StringView(Tmp, First));
+  // } RetDec
 }
 
 // <positive length number> ::= [0-9]*
@@ -3228,7 +3244,9 @@ StringView AbstractManglingParser<Alloc, Derived>::parseBareSourceName() {
   size_t Int = 0;
   if (parsePositiveInteger(&Int) || numLeft() < Int)
     return StringView();
+  // RetDec {
   StringView R = copyString({First, First + Int});
+  // } RetDec
   First += Int;
   return R;
 }
@@ -3440,7 +3458,9 @@ Node *AbstractManglingParser<Derived, Alloc>::parseQualifiedType() {
 
     // extension            ::= U <objc-name> <objc-type>  # objc-type<identifier>
     if (Qual.startsWith("objcproto")) {
+      // RetDec {
       StringView ProtoSourceName = copyString(Qual.dropFront(std::strlen("objcproto")));
+      // } RetDec
       StringView Proto;
       {
         SwapAndRestore<const char *> SaveFirst(First, ProtoSourceName.begin()),
@@ -4945,7 +4965,9 @@ Node *AbstractManglingParser<Alloc, Derived>::parseFloatingLiteral() {
   const size_t N = FloatData<Float>::mangled_size;
   if (numLeft() <= N)
     return nullptr;
+  // RetDec {
   StringView Data = copyString({First, First + N});
+  // } RetDec
   for (char C : Data)
     if (!std::isxdigit(C))
       return nullptr;
@@ -5188,7 +5210,9 @@ Node *AbstractManglingParser<Derived, Alloc>::parse() {
     if (Encoding == nullptr)
       return nullptr;
     if (look() == '.') {
+      // RetDec {
       Encoding = make<DotSuffix>(Encoding, copyString({First, Last}));
+      // } RetDec
       First = Last;
     }
     if (numLeft() != 0)
